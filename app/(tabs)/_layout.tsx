@@ -28,6 +28,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="athletes"
+        options={{
+          title: 'Athletes',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'body' : 'body-outline'} color={color} size={24}/>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="trainings"
+        options={{
+          title: 'Trainings',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'analytics' : 'analytics-outline'} color={color} size={24}/>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="about"
         options={{
           title: 'About',
@@ -36,8 +54,7 @@ export default function TabLayout() {
           ),
         }}
       />
-    </Tabs>
-    
+    </Tabs>   
   );
 }
 
