@@ -15,25 +15,25 @@ interface Athlete {
   email?: string;
   phone?: string;
   active?: boolean;
-  team?: string;
+  groups?: string;
 }
 
 const AthletesScreen = () => {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState('ASS');
+  const [selectedGroup, setSelectedGroup] = useState('ASS');
 
   useEffect(() => {
     fetchAthletes(setAthletes);
   }, []);
 
   const filteredAthletes = athletes
-    .filter((athlete) => athlete.team === selectedTeam)
+    .filter((athlete) => athlete.groups === selectedGroup)
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-  const filterAthletesByTeamHandler = (team: string) => {
-    filterAthletesByTeam(team, setSelectedTeam);
+  const filterAthletesByTeamHandler = (groups: string) => {
+    filterAthletesByTeam(groups, setSelectedGroup);
   };
 
   const openModal = (athlete: Athlete) => {
@@ -127,7 +127,7 @@ const AthletesScreen = () => {
   return (
     <View style={styles.container}>
       <Picker
-        selectedValue={selectedTeam}
+        selectedValue={selectedGroup}
         onValueChange={(itemValue) => filterAthletesByTeamHandler(itemValue)}
         style={styles.picker}
       >
@@ -208,8 +208,8 @@ const AthletesScreen = () => {
                 </View>
               <TextInput
                 style={styles.input}
-                value={selectedAthlete.team}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, team: text })}
+                value={selectedAthlete.groups}
+                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, groups: text })}
                 placeholder="Team"
               />
                 <View style={styles.modalButtons}>

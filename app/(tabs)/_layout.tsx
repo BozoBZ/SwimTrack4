@@ -31,7 +31,7 @@ export default function TabLayout() {
         options={{
           title: 'Athletes',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'body' : 'body-outline'} color={color} size={24}/>
+            <Ionicons name={focused ? 'people-sharp' : 'people-outline'} color={color} size={24}/>
           ),
         }}
       />
@@ -40,16 +40,25 @@ export default function TabLayout() {
         options={{
           title: 'Trainings',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'analytics' : 'analytics-outline'} color={color} size={24}/>
+            <Ionicons name={focused ? 'barbell' : 'barbell-outline'} color={color} size={24}/>
           ),
         }}
       />
       <Tabs.Screen
-        name="about"
+        name="stats"
         options={{
-          title: 'About',
+          title: 'Statistics',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'information-circle' : 'information-circle-outline'} color={color} size={24}/>
+            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} color={color} size={24}/>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="trend"
+        options={{
+          title: 'Trend',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} color={color} size={24}/>
           ),
         }}
       />

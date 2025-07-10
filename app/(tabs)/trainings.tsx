@@ -157,7 +157,7 @@ export default function TrainingsScreen() {
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [athletesList, setAthletesList] = useState<any[]>([]);
   const [filteredAthletes, setFilteredAthletes] = useState<any[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>('ASS');
+  const [selectedGroup, setSelectedGroup] = useState<string>('ASS');
 
   const [newSession, setNewSession] = useState<Partial<TrainingDay>>({
     session_id: 0,
@@ -267,7 +267,7 @@ export default function TrainingsScreen() {
   };
 
   const filterAthletesByTeamHandler = (team: string) => {
-    filterAthletesByTeam(team, setSelectedTeam);
+    filterAthletesByTeam(team, setSelectedGroup);
   };
 
   const renderAthlete = ({ item }: { item: any }) => (
@@ -362,7 +362,7 @@ export default function TrainingsScreen() {
                         params: {
                           sessionId: item.session_id,
                           sessionDate: item.date,
-                          selectedTeam,
+                          selectedGroup,
                         },
                       });
                     }}

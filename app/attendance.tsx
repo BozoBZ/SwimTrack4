@@ -16,7 +16,7 @@ const AttendanceScreen = () => {
   type AttendanceRouteParams = {
     sessionId: number;
     sessionDate: string;
-    selectedTeam: string;
+    selectedGroup: string;
   };
 
   // Define your navigation param list type
@@ -28,8 +28,8 @@ const AttendanceScreen = () => {
 
   const route = useRoute<RouteProp<{ params: AttendanceRouteParams }, 'params'>>();
   const router = useRouter();
-  const { sessionId, sessionDate, selectedTeam } = route.params || {};
-  const team = Array.isArray(selectedTeam) ? selectedTeam[0] : selectedTeam; // Ensure selectedTeam is a string
+  const { sessionId, sessionDate, selectedGroup } = route.params || {};
+  const groups = Array.isArray(selectedGroup) ? selectedGroup[0] : selectedGroup; // Ensure selectedTeam is a string
 
   const [filteredAthletes, setFilteredAthletes] = useState<{ name: string; fincode: string; status?: string }[]>([]);
 
@@ -40,7 +40,7 @@ const AttendanceScreen = () => {
       case undefined:
         return 'P'; // Present (green)
       case 'P':
-        return 'J'; // Justified (yellow)
+        return 'J'; // Justified (light blue)
       case 'J':
         return 'A'; // Absent (red)
       case 'A':
@@ -60,16 +60,16 @@ const AttendanceScreen = () => {
     );
   };
 
-  // Always reload athletes and attendance together when sessionId, team, or sessionDate changes
+  // Always reload athletes and attendance together when sessionId, groups, or sessionDate changes
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
       try {
-        // Fetch athletes for the team
+        // Fetch athletes for the groups
         const { data: athletes, error: athletesError } = await supabase
           .from('athletes')
           .select('*')
-          .eq('team', team);
+          .eq('groups', groups);
         if (athletesError) throw athletesError;
         const sortedAthletes = (athletes || []).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -92,9 +92,9 @@ const AttendanceScreen = () => {
     };
     fetchData();
     return () => { isMounted = false; };
-  }, [team, sessionId, sessionDate]);
+  }, [groups, sessionId, sessionDate]);
 
-  if (!sessionId || !sessionDate || !selectedTeam) {
+  if (!sessionId || !sessionDate || !selectedGroup) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Error: Missing session details.</Text>
@@ -107,7 +107,7 @@ const AttendanceScreen = () => {
     let rowStyle = { ...styles.athleteRow };
     if (item.status === 'P') rowStyle.backgroundColor = '#b6eab6'; // light green
     else if (item.status === 'A') rowStyle.backgroundColor = '#f7b6b6'; // light red
-    else if (item.status === 'J') rowStyle.backgroundColor = '#fff7b2'; // light yellow
+    else if (item.status === 'J') rowStyle.backgroundColor = '#b3eaff'; // light blue
     else if (item.status === 'N' || !item.status) rowStyle.backgroundColor = '#e0e0e0'; // light gray
 
     // Convert Google Drive URLs to direct links
@@ -145,7 +145,7 @@ const AttendanceScreen = () => {
       <Text style={styles.title}>Session ID: {sessionId}</Text>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
         <Text style={styles.subtitle}>Date: {sessionDate}</Text>
-        <Text style={styles.subtitle}>Team: {selectedTeam}</Text>
+        <Text style={styles.subtitle}>Group: {selectedGroup}</Text>
       </View>
       <FlatList
         data={filteredAthletes}
