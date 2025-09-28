@@ -3,6 +3,7 @@
     "name": "SwimTrack4",
     "slug": "SwimTrack4",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "swimtrack4",
@@ -33,7 +34,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
