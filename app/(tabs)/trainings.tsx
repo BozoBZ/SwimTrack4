@@ -1,12 +1,19 @@
-import { Text, FlatList, Modal, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import React, { useState } from 'react';
-import { Picker } from '@react-native-picker/picker'; // Import Picker for dropdown
-import styled from 'styled-components/native';
-import { supabase } from '../supabaseClient';
-import { filterAthletesByTeam, fetchAthletes } from '../athletesUtils';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import {
+  Text,
+  FlatList,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Calendar } from "react-native-calendars";
+import React, { useState } from "react";
+import { Picker } from "@react-native-picker/picker"; // Import Picker for dropdown
+import styled from "styled-components/native";
+import { supabase } from "../../utils/supabaseClient";
+import { filterAthletesByTeam, fetchAthletes } from "../../utils/athletesUtils";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
 
 type TrainingDay = {
   session_id: number;
@@ -154,23 +161,24 @@ export default function TrainingsScreen() {
   const [selectedDay, setSelectedDay] = useState<DateObject | null>(null);
   const [sessionsForDay, setSessionsForDay] = useState<TrainingDay[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
+  const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
+    useState(false);
   const [athletesList, setAthletesList] = useState<any[]>([]);
   const [filteredAthletes, setFilteredAthletes] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>('ASS');
+  const [selectedGroup, setSelectedGroup] = useState<string>("ASS");
 
   const [newSession, setNewSession] = useState<Partial<TrainingDay>>({
     session_id: 0,
-    title: '',
-    date: '',
-    starttime: '18:00', // Default value
-    endtime: '20:00',   // Default value
-    type: 'Swim',  // Default value
-    description: '',
+    title: "",
+    date: "",
+    starttime: "18:00", // Default value
+    endtime: "20:00", // Default value
+    type: "Swim", // Default value
+    description: "",
     volume: 0,
-    location: 'Bolzano',     // Default value
-    poollength: 25,         // Default value
-    groups: 'ASS',    // Default value
+    location: "Bolzano", // Default value
+    poollength: 25, // Default value
+    groups: "ASS", // Default value
   });
 
   const router = useRouter();
@@ -178,9 +186,9 @@ export default function TrainingsScreen() {
   const fetchSessionsForDay = async (dateString: string) => {
     try {
       const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('date', dateString);
+        .from("sessions")
+        .select("*")
+        .eq("date", dateString);
 
       if (error) {
         throw error;
@@ -188,7 +196,7 @@ export default function TrainingsScreen() {
 
       setSessionsForDay(data || []);
     } catch (err) {
-      console.error('Failed to fetch sessions for the day:', err);
+      console.error("Failed to fetch sessions for the day:", err);
     }
   };
 
@@ -200,13 +208,16 @@ export default function TrainingsScreen() {
   const toggleModal = () => {
     setNewSession({
       ...newSession,
-      date: selectedDay?.dateString || '', // Autofill date with selected day
-      groups: 'ASS', // Ensure groups is initialized as a string
+      date: selectedDay?.dateString || "", // Autofill date with selected day
+      groups: "ASS", // Ensure groups is initialized as a string
     });
     setIsModalVisible(!isModalVisible);
   };
 
-  const handleInputChange = (field: keyof TrainingDay, value: string | number) => {
+  const handleInputChange = (
+    field: keyof TrainingDay,
+    value: string | number
+  ) => {
     setNewSession({ ...newSession, [field]: value });
   };
 
@@ -214,7 +225,7 @@ export default function TrainingsScreen() {
     try {
       // Ensure time is in hh:mm format (not hh:mm:ss or longer)
       const formatTime = (time: string | undefined) => {
-        if (!time) return '';
+        if (!time) return "";
         // Only keep hh:mm
         return time.length > 5 ? time.slice(0, 5) : time;
       };
@@ -224,19 +235,22 @@ export default function TrainingsScreen() {
         ...fieldsToSave,
         starttime: formatTime(newSession.starttime),
         endtime: formatTime(newSession.endtime),
-        groups: typeof newSession.groups === 'string' ? newSession.groups : newSession.groups?.[0] || '',
+        groups:
+          typeof newSession.groups === "string"
+            ? newSession.groups
+            : newSession.groups?.[0] || "",
       };
 
       let response;
       if (newSession.session_id) {
         // For update, do not update session_id field
         response = await supabase
-          .from('sessions')
+          .from("sessions")
           .update(formattedSession)
-          .eq('session_id', newSession.session_id);
+          .eq("session_id", newSession.session_id);
       } else {
         // For insert, just use formattedSession (session_id is not present)
-        response = await supabase.from('sessions').insert([formattedSession]);
+        response = await supabase.from("sessions").insert([formattedSession]);
       }
 
       if (response.error) {
@@ -247,21 +261,21 @@ export default function TrainingsScreen() {
         fetchSessionsForDay(selectedDay.dateString);
       }
     } catch (err) {
-      console.error('Failed to save session:', err);
+      console.error("Failed to save session:", err);
     } finally {
       setIsModalVisible(false);
       setNewSession({
-        title: '',
-        date: selectedDay?.dateString || '',
-        starttime: '18:00',
-        endtime: '20:00',
-        type: 'Swim',
-        description: '',
+        title: "",
+        date: selectedDay?.dateString || "",
+        starttime: "18:00",
+        endtime: "20:00",
+        type: "Swim",
+        description: "",
         volume: 0,
-        location: 'Bolzano',
-        poolname: 'Maso della Pieve',
+        location: "Bolzano",
+        poolname: "Maso della Pieve",
         poollength: 25,
-        groups: 'ASS',
+        groups: "ASS",
       });
     }
   };
@@ -270,16 +284,14 @@ export default function TrainingsScreen() {
     filterAthletesByTeam(team, setSelectedGroup);
   };
 
-  const renderAthlete = ({ item }: { item: any }) => (
-    <Text>{item.name}</Text>
-  );
+  const renderAthlete = ({ item }: { item: any }) => <Text>{item.name}</Text>;
 
   const editSession = async (session_id: number) => {
     try {
       const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('session_id', session_id);
+        .from("sessions")
+        .select("*")
+        .eq("session_id", session_id);
 
       if (error) {
         throw error;
@@ -289,21 +301,21 @@ export default function TrainingsScreen() {
         const session = data[0];
         setNewSession({
           ...session,
-          groups: session.groups || '', // Ensure groups is treated as a string
+          groups: session.groups || "", // Ensure groups is treated as a string
         });
         setIsModalVisible(true);
       }
     } catch (err) {
-      console.error('Failed to fetch session details:', err);
+      console.error("Failed to fetch session details:", err);
     }
   };
 
   const deleteSession = async (session_id: number) => {
     try {
       const { error } = await supabase
-        .from('sessions')
+        .from("sessions")
         .delete()
-        .eq('session_id', session_id);
+        .eq("session_id", session_id);
 
       if (error) {
         throw error;
@@ -313,7 +325,7 @@ export default function TrainingsScreen() {
         prevSessions.filter((session) => session.session_id !== session_id)
       );
     } catch (err) {
-      console.error('Failed to delete session:', err);
+      console.error("Failed to delete session:", err);
     }
   };
 
@@ -327,15 +339,15 @@ export default function TrainingsScreen() {
             ? {
                 [selectedDay.dateString]: {
                   selected: true,
-                  selectedColor: 'blue',
-                  textColor: 'white',
+                  selectedColor: "blue",
+                  textColor: "white",
                 },
               }
             : {}),
         }}
         theme={{
-          selectedDayBackgroundColor: 'blue',
-          selectedDayTextColor: 'white',
+          selectedDayBackgroundColor: "blue",
+          selectedDayTextColor: "white",
         }}
       />
       {selectedDay && (
@@ -346,7 +358,11 @@ export default function TrainingsScreen() {
           </AddNewButton>
           <FlatList
             data={sessionsForDay}
-            keyExtractor={(item) => (item.session_id ? item.session_id.toString() : Math.random().toString())}
+            keyExtractor={(item) =>
+              item.session_id
+                ? item.session_id.toString()
+                : Math.random().toString()
+            }
             renderItem={({ item }) => (
               <SessionItem>
                 <Text>Session ID: {item.session_id}</Text>
@@ -358,7 +374,7 @@ export default function TrainingsScreen() {
                   <AttendanceButton
                     onPress={() => {
                       router.push({
-                        pathname: '/attendance',
+                        pathname: "/attendance",
                         params: {
                           sessionId: item.session_id,
                           sessionDate: item.date,
@@ -375,75 +391,99 @@ export default function TrainingsScreen() {
                 </ButtonContainer>
               </SessionItem>
             )}
-            ListEmptyComponent={<NoSessions><Text>No sessions</Text></NoSessions>}
+            ListEmptyComponent={
+              <NoSessions>
+                <Text>No sessions</Text>
+              </NoSessions>
+            }
             style={{ flexGrow: 1, minHeight: 100 }}
           />
         </>
       )}
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>
         <ModalContainer>
-          <ModalContent style={{ maxHeight: '80%' }}>
+          <ModalContent style={{ maxHeight: "80%" }}>
             <ScrollView>
               <ModalTitle>Add/Edit Session</ModalTitle>
               <Input
                 placeholder="Title"
-                value={newSession.title || ''}
-                onChangeText={(text: string) => handleInputChange('title', text)}
+                value={newSession.title || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("title", text)
+                }
               />
               <Text>Date: {newSession.date}</Text>
               <Input
                 placeholder="Start Time (hh:mm)"
-                value={newSession.starttime || ''}
-                onChangeText={(text: string) => handleInputChange('starttime', text)}
+                value={newSession.starttime || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("starttime", text)
+                }
               />
               <Input
                 placeholder="End Time (hh:mm)"
-                value={newSession.endtime || ''}
-                onChangeText={(text: string) => handleInputChange('endtime', text)}
+                value={newSession.endtime || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("endtime", text)
+                }
               />
               <Picker
                 selectedValue={newSession.type}
-                onValueChange={(itemValue) => handleInputChange('type', itemValue)}
+                onValueChange={(itemValue) =>
+                  handleInputChange("type", itemValue)
+                }
               >
                 <Picker.Item label="Swim" value="Swim" />
                 <Picker.Item label="Gym" value="Gym" />
               </Picker>
               <Input
                 placeholder="Description"
-                value={newSession.description || ''}
-                onChangeText={(text: string) => handleInputChange('description', text)}
+                value={newSession.description || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("description", text)
+                }
               />
               {/* Hide volume, poolname, poollength if type is Gym */}
-              {newSession.type !== 'Gym' && (
+              {newSession.type !== "Gym" && (
                 <>
                   <Input
                     placeholder="Volume"
                     value={(newSession.volume ?? 0).toString()}
-                    onChangeText={(text: string) => handleInputChange('volume', parseInt(text))}
+                    onChangeText={(text: string) =>
+                      handleInputChange("volume", parseInt(text))
+                    }
                     keyboardType="numeric"
                   />
                   <Input
                     placeholder="Pool Name"
-                    value={newSession.poolname || ''}
-                    onChangeText={(text: string) => handleInputChange('poolname', text)}
+                    value={newSession.poolname || ""}
+                    onChangeText={(text: string) =>
+                      handleInputChange("poolname", text)
+                    }
                   />
                   <Input
                     placeholder="Pool Length"
                     value={(newSession.poollength ?? 0).toString()}
-                    onChangeText={(text: string) => handleInputChange('poollength', parseInt(text))}
+                    onChangeText={(text: string) =>
+                      handleInputChange("poollength", parseInt(text))
+                    }
                     keyboardType="numeric"
                   />
                 </>
               )}
               <Input
                 placeholder="Location"
-                value={newSession.location || ''}
-                onChangeText={(text: string) => handleInputChange('location', text)}
+                value={newSession.location || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("location", text)
+                }
               />
               <Input
                 placeholder="Groups"
-                value={newSession.groups || ''}
-                onChangeText={(text: string) => handleInputChange('groups', text)}
+                value={newSession.groups || ""}
+                onChangeText={(text: string) =>
+                  handleInputChange("groups", text)
+                }
               />
               <ButtonContainer>
                 <SaveButton onPress={saveSession}>

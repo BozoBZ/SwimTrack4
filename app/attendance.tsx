@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, Alert } from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { supabase } from './supabaseClient';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet, Image, Alert } from "react-native";
+import { useRoute, RouteProp } from "@react-navigation/native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { supabase } from "../utils/supabaseClient";
+import { useRouter } from "expo-router";
 
 // Define the Athlete type
 type Athlete = {
@@ -26,26 +26,31 @@ const AttendanceScreen = () => {
     // add other routes if needed
   };
 
-  const route = useRoute<RouteProp<{ params: AttendanceRouteParams }, 'params'>>();
+  const route =
+    useRoute<RouteProp<{ params: AttendanceRouteParams }, "params">>();
   const router = useRouter();
   const { sessionId, sessionDate, selectedGroup } = route.params || {};
-  const groups = Array.isArray(selectedGroup) ? selectedGroup[0] : selectedGroup; // Ensure selectedTeam is a string
+  const groups = Array.isArray(selectedGroup)
+    ? selectedGroup[0]
+    : selectedGroup; // Ensure selectedTeam is a string
 
-  const [filteredAthletes, setFilteredAthletes] = useState<{ name: string; fincode: string; status?: string }[]>([]);
+  const [filteredAthletes, setFilteredAthletes] = useState<
+    { name: string; fincode: string; status?: string }[]
+  >([]);
 
   // Helper to cycle status
   const cycleStatus = (currentStatus?: string) => {
     switch (currentStatus) {
-      case 'N':
+      case "N":
       case undefined:
-        return 'P'; // Present (green)
-      case 'P':
-        return 'J'; // Justified (light blue)
-      case 'J':
-        return 'A'; // Absent (red)
-      case 'A':
+        return "P"; // Present (green)
+      case "P":
+        return "J"; // Justified (light blue)
+      case "J":
+        return "A"; // Absent (red)
+      case "A":
       default:
-        return 'N'; // Not set (gray)
+        return "N"; // Not set (gray)
     }
   };
 
@@ -67,31 +72,37 @@ const AttendanceScreen = () => {
       try {
         // Fetch athletes for the groups
         const { data: athletes, error: athletesError } = await supabase
-          .from('athletes')
-          .select('*')
-          .eq('groups', groups);
+          .from("athletes")
+          .select("*")
+          .eq("groups", groups);
         if (athletesError) throw athletesError;
-        const sortedAthletes = (athletes || []).sort((a, b) => a.name.localeCompare(b.name));
+        const sortedAthletes = (athletes || []).sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
 
         // Fetch attendance for the session
         const { data: attendanceData, error: attendanceError } = await supabase
-          .from('attendance')
-          .select('fincode, status')
-          .eq('session_id', sessionId);
+          .from("attendance")
+          .select("fincode, status")
+          .eq("session_id", sessionId);
         if (attendanceError) throw attendanceError;
 
         // Merge attendance status into athletes
         const merged = sortedAthletes.map((athlete) => {
-          const attendance = attendanceData?.find((a) => a.fincode === athlete.fincode);
-          return { ...athlete, status: attendance ? attendance.status : 'N' };
+          const attendance = attendanceData?.find(
+            (a) => a.fincode === athlete.fincode
+          );
+          return { ...athlete, status: attendance ? attendance.status : "N" };
         });
         if (isMounted) setFilteredAthletes(merged);
       } catch (err) {
-        console.error('Failed to fetch athletes or attendance:', err);
+        console.error("Failed to fetch athletes or attendance:", err);
       }
     };
     fetchData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [groups, sessionId, sessionDate]);
 
   if (!sessionId || !sessionDate || !selectedGroup) {
@@ -105,13 +116,17 @@ const AttendanceScreen = () => {
   const renderAthlete = ({ item }: { item: any }) => {
     // Set background color based on status
     let rowStyle = { ...styles.athleteRow };
-    if (item.status === 'P') rowStyle.backgroundColor = '#b6eab6'; // light green
-    else if (item.status === 'A') rowStyle.backgroundColor = '#f7b6b6'; // light red
-    else if (item.status === 'J') rowStyle.backgroundColor = '#b3eaff'; // light blue
-    else if (item.status === 'N' || !item.status) rowStyle.backgroundColor = '#e0e0e0'; // light gray
+    if (item.status === "P")
+      rowStyle.backgroundColor = "#b6eab6"; // light green
+    else if (item.status === "A")
+      rowStyle.backgroundColor = "#f7b6b6"; // light red
+    else if (item.status === "J")
+      rowStyle.backgroundColor = "#b3eaff"; // light blue
+    else if (item.status === "N" || !item.status)
+      rowStyle.backgroundColor = "#e0e0e0"; // light gray
 
     // Convert Google Drive URLs to direct links
-    if (item.photo && item.photo.includes('drive.google.com')) {
+    if (item.photo && item.photo.includes("drive.google.com")) {
       const fileIdMatch = item.photo.match(/\/d\/([a-zA-Z0-9_-]+)/);
       if (fileIdMatch) {
         item.photo = `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
@@ -125,17 +140,22 @@ const AttendanceScreen = () => {
             source={{ uri: item.photo }}
             style={styles.portrait}
             onError={(error) => {
-              console.error('Image failed to load:', error.nativeEvent);
+              console.error("Image failed to load:", error.nativeEvent);
               item.photo = undefined;
             }}
           />
         ) : (
-        <Image
-          source={require('@/assets/images/default-avatar.png')}
-          style={styles.portrait}
-        />
+          <Image
+            source={require("@/assets/images/default-avatar.png")}
+            style={styles.portrait}
+          />
         )}
-        <Text onPress={() => handleNamePress(item.fincode)} style={{ fontWeight: 'bold', fontSize: 16 }}>{item.name}</Text>
+        <Text
+          onPress={() => handleNamePress(item.fincode)}
+          style={{ fontWeight: "bold", fontSize: 16 }}
+        >
+          {item.name}
+        </Text>
       </View>
     );
   };
@@ -143,7 +163,13 @@ const AttendanceScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Session ID: {sessionId}</Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
         <Text style={styles.subtitle}>Date: {sessionDate}</Text>
         <Text style={styles.subtitle}>Group: {selectedGroup}</Text>
       </View>
@@ -159,31 +185,36 @@ const AttendanceScreen = () => {
           onPress={async () => {
             try {
               // Fetch current records for this session
-              const { data: existingRecords, error: fetchError } = await supabase
-                .from('attendance')
-                .select('fincode')
-                .eq('session_id', sessionId);
+              const { data: existingRecords, error: fetchError } =
+                await supabase
+                  .from("attendance")
+                  .select("fincode")
+                  .eq("session_id", sessionId);
 
               if (fetchError) throw fetchError;
 
               // Determine fincodes that need deletion
               const fincodesToDelete = filteredAthletes
-                .filter(a => a.status === 'N' && existingRecords.some(r => r.fincode === a.fincode))
-                .map(a => a.fincode);
+                .filter(
+                  (a) =>
+                    a.status === "N" &&
+                    existingRecords.some((r) => r.fincode === a.fincode)
+                )
+                .map((a) => a.fincode);
 
               // Delete the records with 'N' status
               if (fincodesToDelete.length > 0) {
                 const { error: deleteError } = await supabase
-                  .from('attendance')
+                  .from("attendance")
                   .delete()
-                  .in('fincode', fincodesToDelete)
-                  .eq('session_id', sessionId);
+                  .in("fincode", fincodesToDelete)
+                  .eq("session_id", sessionId);
 
                 if (deleteError) throw deleteError;
-}
+              }
               // Prepare attendance records for upsert, excluding those with status 'N'
               const attendanceRecords = filteredAthletes
-                .filter((athlete) => athlete.status && athlete.status !== 'N')
+                .filter((athlete) => athlete.status && athlete.status !== "N")
                 .map((athlete) => ({
                   session_id: sessionId,
                   fincode: athlete.fincode,
@@ -191,25 +222,27 @@ const AttendanceScreen = () => {
                 }));
               // Upsert attendance records (insert or update on conflict)
               const { error } = await supabase
-                .from('attendance')
-                .upsert(attendanceRecords, { onConflict: 'session_id,fincode' });
+                .from("attendance")
+                .upsert(attendanceRecords, {
+                  onConflict: "session_id,fincode",
+                });
               if (error) {
                 throw error;
               }
               // Show success alert and navigate on OK
               Alert.alert(
-                'Attendance Saved',
-                'Attendance has been saved successfully.',
+                "Attendance Saved",
+                "Attendance has been saved successfully.",
                 [
                   {
-                    text: 'OK',
-                    onPress: () => router.push('/(tabs)/trainings')
-                  }
+                    text: "OK",
+                    onPress: () => router.push("/(tabs)/trainings"),
+                  },
                 ],
                 { cancelable: false }
               );
             } catch (err) {
-              console.error('Failed to save attendance:', err);
+              console.error("Failed to save attendance:", err);
             }
           }}
           size={20}
@@ -218,7 +251,7 @@ const AttendanceScreen = () => {
         <Ionicons.Button
           name="close"
           backgroundColor="#ff4336"
-          onPress={() => router.push('/(tabs)/trainings')}
+          onPress={() => router.push("/(tabs)/trainings")}
           size={20}
           color="#fff"
         />
@@ -231,11 +264,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
   },
   subtitle: {
@@ -244,10 +277,10 @@ const styles = StyleSheet.create({
   },
   athleteItem: {
     padding: 10,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     marginBottom: 5,
     borderRadius: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -256,32 +289,32 @@ const styles = StyleSheet.create({
   },
   athleteName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   athleteDetails: {
     fontSize: 14,
-    color: '#555',
+    color: "#555",
   },
   errorText: {
     fontSize: 16,
-    color: 'red',
-    textAlign: 'center',
+    color: "red",
+    textAlign: "center",
     marginTop: 20,
   },
   athleteRow: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
     padding: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
   },
   row: {
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   portrait: {
     width: 50,
@@ -290,9 +323,9 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   bottomButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 20,
     paddingHorizontal: 20,
     marginBottom: 32, // Add extra bottom margin to avoid overlap with navigation bar

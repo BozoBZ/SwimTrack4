@@ -1,39 +1,171 @@
-import { StyleSheet, View, Text, TextInput, Button, FlatList, Image, Modal, TouchableOpacity } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { format } from 'date-fns';
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
-import { filterAthletesByTeam, fetchAthletes } from '../athletesUtils';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  Image,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { format } from "date-fns";
+import React, { useState, useEffect } from "react";
+import { supabase } from "../../utils/supabaseClient";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 interface Athlete {
-  fincode: number;
+  fincode?: number;
   name: string;
-  photo?: string; // Optional property for the athlete's photo
+  photo?: string;
   birthdate?: string;
   gender?: string;
   email?: string;
   phone?: string;
   active?: boolean;
   groups?: string;
+  [key: string]: any; // Allow additional properties from rosters
+}
+
+// Interface for season data
+interface Season {
+  seasonid: number;
+  description: string;
+  seasonstart: string;
+  seasonend: string;
 }
 
 const AthletesScreen = () => {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [filteredAthletes, setFilteredAthletes] = useState<Athlete[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<string>("");
+  const [selectedGroup, setSelectedGroup] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState('ASS');
+
+  const groupOptions = [
+    { label: "Select a group...", value: "" },
+    { label: "ASS", value: "ASS" },
+    { label: "EA", value: "EA" },
+    { label: "EB", value: "EB" },
+    { label: "PROP", value: "PROP" },
+  ];
 
   useEffect(() => {
-    fetchAthletes(setAthletes);
+    // Fetch seasons from the database
+    const fetchSeasons = async () => {
+      setSeasonsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("_seasons")
+          .select("*")
+          .order("seasonid", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching seasons:", error);
+        } else {
+          setSeasons(data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching seasons:", err);
+      }
+      setSeasonsLoading(false);
+    };
+
+    fetchSeasons();
   }, []);
 
-  const filteredAthletes = athletes
-    .filter((athlete) => athlete.groups === selectedGroup)
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  // Fetch athletes when season or group changes
+  useEffect(() => {
+    if (selectedSeason && selectedGroup && selectedGroup !== "") {
+      fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
+    } else {
+      setAthletes([]);
+      setFilteredAthletes([]);
+      setLoading(false);
+    }
+  }, [selectedSeason, selectedGroup]);
 
-  const filterAthletesByTeamHandler = (groups: string) => {
-    filterAthletesByTeam(groups, setSelectedGroup);
+  const fetchAthletesForSeasonAndGroup = async (
+    season: string,
+    group: string
+  ) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Test basic connection first
+      const testConnection = await supabase.from("athletes").select("count");
+
+      // Call the database function get_athletes_with_rosters with both parameters
+      const { data, error } = await supabase.rpc("get_athletes_with_rosters", {
+        paramseason: season,
+        paramgroups: group,
+      });
+
+      if (error) {
+        console.error("Database error:", error);
+        setError(`Database error: ${error.message}`);
+        setAthletes([]);
+        setFilteredAthletes([]);
+        return; // Early return to prevent further processing
+      }
+
+      // Check if data exists and is valid
+      if (!data) {
+        setAthletes([]);
+        setFilteredAthletes([]);
+        return;
+      }
+
+      if (!Array.isArray(data)) {
+        console.error("Data is not an array:", data);
+        setError("Invalid data format received");
+        setAthletes([]);
+        setFilteredAthletes([]);
+        return;
+      }
+
+      // Safely process the data
+      const processed = data.map((item: any, index: number) => {
+        // Ensure the item has required properties
+        const processedItem = {
+          ...item,
+          name: item.name || "Unnamed Athlete",
+          fincode: item.fincode || index,
+        };
+
+        return processedItem;
+      });
+
+      // Sort athletes by name alphabetically with safe comparison
+      const sortedAthletes = processed.sort((a: any, b: any) => {
+        try {
+          const nameA = String(a.name || "");
+          const nameB = String(b.name || "");
+          return nameA.localeCompare(nameB);
+        } catch (sortError) {
+          console.error("Error during sorting:", sortError);
+          return 0;
+        }
+      });
+
+      setAthletes(sortedAthletes);
+      setFilteredAthletes(sortedAthletes);
+    } catch (err: any) {
+      console.error("Catch block error:", err);
+      setError(`Error fetching athletes: ${err?.message || "Unknown error"}`);
+      setAthletes([]);
+      setFilteredAthletes([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openModal = (athlete: Athlete) => {
@@ -51,18 +183,21 @@ const AthletesScreen = () => {
 
     try {
       const { error } = await supabase
-        .from('athletes')
+        .from("athletes")
         .update(selectedAthlete)
-        .eq('fincode', selectedAthlete.fincode);
+        .eq("fincode", selectedAthlete.fincode);
 
       if (error) {
         throw error;
       }
 
-      await fetchAthletes(setAthletes);
+      // Refetch data after saving
+      if (selectedSeason && selectedGroup && selectedGroup !== "") {
+        await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
+      }
       closeModal();
     } catch (error) {
-      console.error('Error saving athlete:', error);
+      console.error("Error saving athlete:", error);
     }
   };
 
@@ -71,76 +206,190 @@ const AthletesScreen = () => {
 
     try {
       const { error } = await supabase
-        .from('athletes')
+        .from("athletes")
         .delete()
-        .eq('fincode', selectedAthlete.fincode);
+        .eq("fincode", selectedAthlete.fincode);
 
       if (error) {
         throw error;
       }
 
-      await fetchAthletes(setAthletes);
+      // Refetch data after deleting
+      if (selectedSeason && selectedGroup && selectedGroup !== "") {
+        await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
+      }
       closeModal();
     } catch (error) {
-      console.error('Error deleting athlete:', error);
+      console.error("Error deleting athlete:", error);
     }
   };
 
   const renderAthlete = ({ item }: { item: Athlete }) => {
-
-    // Convert Google Drive URLs to direct links
-    if (item.photo && item.photo.includes('drive.google.com')) {
-      const fileIdMatch = item.photo.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (fileIdMatch) {
-        item.photo = `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
+    try {
+      // Ensure item exists
+      if (!item) {
+        return (
+          <View style={styles.athleteRow}>
+            <Text>Invalid athlete data</Text>
+          </View>
+        );
       }
-    }
 
-    return (
-      <View style={styles.athleteRow}>
-        {item.photo ? (
-          <Image
-            source={{ uri: item.photo }}
-            style={styles.portrait}
-            onError={(error) => {
-              console.error('Image failed to load:', error.nativeEvent);
-              // Fallback to a default image
-              item.photo = undefined;
-            }}
-          />
-        ) : (
-        <Image
-          source={require('@/assets/images/default-avatar.png')}
-          style={styles.portrait}
-        />
-        )}
-        <Text>{item.name}</Text>
-        <View style={[styles.row, { flexDirection: 'row', alignItems: 'center' }]}>
-          <Ionicons name="list-circle-outline" color="#333" size={24}
-            onPress={() => openModal(item)}
-          />
+      // Convert Google Drive URLs to direct links
+      if (item.photo && item.photo.includes("drive.google.com")) {
+        const fileIdMatch = item.photo.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (fileIdMatch) {
+          item.photo = `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
+        }
+      }
+
+      return (
+        <View style={styles.athleteRow}>
+          {item.photo ? (
+            <Image
+              source={{ uri: item.photo }}
+              style={styles.portrait}
+              onError={(error) => {
+                console.error("Image failed to load:", error.nativeEvent);
+                // Fallback to a default image
+                item.photo = undefined;
+              }}
+            />
+          ) : (
+            <Image
+              source={require("@/assets/images/default-avatar.png")}
+              style={styles.portrait}
+            />
+          )}
+          <Text>{item.name || "No Name"}</Text>
+          <View
+            style={[styles.row, { flexDirection: "row", alignItems: "center" }]}
+          >
+            <Ionicons
+              name="list-circle-outline"
+              color="#333"
+              size={24}
+              onPress={() => {
+                try {
+                  openModal(item);
+                } catch (modalError) {
+                  console.error("Error opening modal:", modalError);
+                }
+              }}
+            />
+          </View>
         </View>
-      </View>
-    );
+      );
+    } catch (renderError) {
+      console.error("Error rendering athlete:", renderError);
+      return (
+        <View style={styles.athleteRow}>
+          <Text>Error displaying athlete</Text>
+        </View>
+      );
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Picker
-        selectedValue={selectedGroup}
-        onValueChange={(itemValue) => filterAthletesByTeamHandler(itemValue)}
-        style={styles.picker}
-      >
-        <Picker.Item label="ASS" value="ASS" />
-        <Picker.Item label="EB" value="EB" />
-        <Picker.Item label="EA" value="EA" />
-        <Picker.Item label="Prop" value="Prop" />
-      </Picker>
-      <FlatList
-        data={filteredAthletes}
-        keyExtractor={(item) => item.fincode.toString()}
-        renderItem={renderAthlete}
-      />
+      <Text style={styles.title}>Athletes</Text>
+
+      {/* Dropdowns Row */}
+      <View style={styles.dropdownRow}>
+        <View style={styles.dropdownContainer}>
+          <Text style={styles.label}>Season:</Text>
+          <Picker
+            selectedValue={selectedSeason}
+            onValueChange={(itemValue) => setSelectedSeason(itemValue)}
+            style={styles.picker}
+            enabled={!seasonsLoading}
+          >
+            <Picker.Item label="Select a season..." value="" />
+            {seasons.map((season) => (
+              <Picker.Item
+                key={season.seasonid}
+                label={season.description}
+                value={season.description}
+              />
+            ))}
+          </Picker>
+        </View>
+
+        <View style={styles.dropdownContainer}>
+          <Text style={styles.label}>Group:</Text>
+          <Picker
+            selectedValue={selectedGroup}
+            onValueChange={(itemValue) => setSelectedGroup(itemValue)}
+            style={styles.picker}
+            enabled={!!selectedSeason && !loading}
+          >
+            {groupOptions.map((option) => (
+              <Picker.Item
+                key={option.value}
+                label={option.label}
+                value={option.value}
+              />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
+      {/* Loading and Error States */}
+      {seasonsLoading && <Text>Loading seasons...</Text>}
+      {loading && selectedSeason && <Text>Loading athletes...</Text>}
+      {error && <Text style={{ color: "red" }}>{error}</Text>}
+
+      {/* Athletes List */}
+      {!loading &&
+        !error &&
+        selectedSeason &&
+        selectedGroup !== "" &&
+        Array.isArray(filteredAthletes) &&
+        filteredAthletes.length > 0 && (
+          <FlatList
+            data={filteredAthletes}
+            keyExtractor={(item, index) => {
+              try {
+                if (item && typeof item === "object") {
+                  return (
+                    item.fincode?.toString() ||
+                    item.name?.toString() ||
+                    `athlete_${index}`
+                  );
+                }
+                return `athlete_${index}`;
+              } catch (keyError) {
+                return `athlete_error_${index}`;
+              }
+            }}
+            renderItem={renderAthlete}
+            removeClippedSubviews={false}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
+          />
+        )}
+
+      {/* Empty States */}
+      {!loading && !error && selectedSeason === "" && (
+        <Text style={styles.noSelectionText}>
+          Please select a season from the dropdown to view athletes.
+        </Text>
+      )}
+      {!loading && !error && selectedSeason && selectedGroup === "" && (
+        <Text style={styles.noSelectionText}>
+          Please select a group from the dropdown to view athletes.
+        </Text>
+      )}
+      {!loading &&
+        !error &&
+        selectedSeason &&
+        selectedGroup &&
+        selectedGroup !== "" &&
+        filteredAthletes.length === 0 && (
+          <Text style={styles.noSelectionText}>
+            No athletes found for the selected season and group combination.
+          </Text>
+        )}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -152,82 +401,115 @@ const AthletesScreen = () => {
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.name}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, name: text })}
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, name: text })
+                }
                 placeholder="Name"
               />
               <TextInput
                 style={styles.input}
-                value={selectedAthlete.birthdate ? format(new Date(selectedAthlete.birthdate), 'yyyy-MM-dd') : ''}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, birthdate: text })}
+                value={
+                  selectedAthlete.birthdate
+                    ? format(new Date(selectedAthlete.birthdate), "yyyy-MM-dd")
+                    : ""
+                }
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, birthdate: text })
+                }
                 placeholder="Birthdate (YYYY-MM-DD)"
               />
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.gender}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, gender: text })}
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, gender: text })
+                }
                 placeholder="Gender"
               />
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.email}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, email: text })}
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, email: text })
+                }
                 placeholder="Email"
               />
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.phone}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, phone: text })}
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, phone: text })
+                }
                 placeholder="Phone"
               />
-                <View style={styles.booleanRow}>
-                  <Text>Active:</Text>
-                  <TouchableOpacity
-                    onPress={() => setSelectedAthlete({ ...selectedAthlete, active: !selectedAthlete.active })}
+              <View style={styles.booleanRow}>
+                <Text>Active:</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setSelectedAthlete({
+                      ...selectedAthlete,
+                      active: !selectedAthlete.active,
+                    })
+                  }
+                  style={{
+                    marginLeft: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <View
                     style={{
-                      marginLeft: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                      width: 20,
+                      height: 20,
+                      borderWidth: 1,
+                      borderColor: "#ccc",
+                      backgroundColor: selectedAthlete.active
+                        ? "#4CAF50"
+                        : "transparent",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                   >
-                    <View
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderWidth: 1,
-                        borderColor: '#ccc',
-                        backgroundColor: selectedAthlete.active ? '#4CAF50' : 'transparent',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {selectedAthlete.active && (
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>✔</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                    {selectedAthlete.active && (
+                      <Text style={{ color: "white", fontWeight: "bold" }}>
+                        ✔
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.groups}
-                onChangeText={(text) => setSelectedAthlete({ ...selectedAthlete, groups: text })}
+                onChangeText={(text) =>
+                  setSelectedAthlete({ ...selectedAthlete, groups: text })
+                }
                 placeholder="Team"
               />
-                <View style={styles.modalButtons}>
-                <TouchableOpacity onPress={saveAthlete} style={{ marginHorizontal: 8 }}>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  onPress={saveAthlete}
+                  style={{ marginHorizontal: 8 }}
+                >
                   <Ionicons name="save-outline" color="#333" size={24} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={closeModal} style={{ marginHorizontal: 8 }}>
+                <TouchableOpacity
+                  onPress={closeModal}
+                  style={{ marginHorizontal: 8 }}
+                >
                   <Ionicons name="close-outline" color="#FF5722" size={24} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={deleteAthlete} style={{ marginHorizontal: 8 }}>
+                <TouchableOpacity
+                  onPress={deleteAthlete}
+                  style={{ marginHorizontal: 8 }}
+                >
                   <Ionicons name="trash-outline" color="#F44336" size={24} />
                 </TouchableOpacity>
-                </View>
+              </View>
             </>
           )}
         </View>
       </Modal>
-
     </View>
   );
 };
@@ -237,20 +519,41 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  dropdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  dropdownContainer: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+    marginTop: 8,
+  },
   athleteRow: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
     padding: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
   },
   row: {
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   portrait: {
     width: 50,
@@ -260,32 +563,38 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 16,
   },
   input: {
-    width: '100%',
+    width: "100%",
     padding: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     marginBottom: 16,
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
   },
   booleanRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   picker: {
     marginBottom: 16,
   },
+  noSelectionText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 20,
+    fontStyle: "italic",
+  },
 });
 
 export default AthletesScreen;
-
