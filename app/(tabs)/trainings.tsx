@@ -5,8 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  View,
 } from "react-native";
-import { Calendar } from "react-native-calendars";
+import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import React, { useState } from "react";
 import { Picker } from "@react-native-picker/picker"; // Import Picker for dropdown
 import styled from "styled-components/native";
@@ -157,15 +158,107 @@ const ButtonContainer = styled.View`
   margin-top: 10px;
 `;
 
+const WeeklyCalendarContainer = styled.View`
+  background-color: #ffffff;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 15px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const WeekNavigation = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+`;
+
+const NavButton = styled.TouchableOpacity`
+  padding: 10px;
+  border-radius: 20px;
+  background-color: #f8f9fa;
+`;
+
+const WeekTitle = styled.Text`
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+`;
+
+const WeekDaysContainer = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+`;
+
+const DayContainer = styled.View`
+  align-items: center;
+  flex: 1;
+`;
+
+const DayLabel = styled.Text`
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+`;
+
+const DayButton = styled.TouchableOpacity<{
+  isSelected?: boolean;
+  isToday?: boolean;
+}>`
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  justify-content: center;
+  align-items: center;
+  background-color: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
+    props.isSelected ? "#007AFF" : props.isToday ? "#E3F2FD" : "transparent"};
+  border: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
+    props.isToday && !props.isSelected ? "2px solid #007AFF" : "none"};
+`;
+
+const DayText = styled.Text<{ isSelected?: boolean; isToday?: boolean }>`
+  font-size: 16px;
+  font-weight: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
+    props.isToday || props.isSelected ? "bold" : "normal"};
+  color: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
+    props.isSelected ? "#FFFFFF" : props.isToday ? "#007AFF" : "#333"};
+`;
+
+const GroupFilterContainer = styled.View`
+  background-color: #ffffff;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  padding: 15px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const FilterLabel = styled.Text`
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+`;
+
 export default function TrainingsScreen() {
   const [selectedDay, setSelectedDay] = useState<DateObject | null>(null);
+  const [currentWeek, setCurrentWeek] = useState(new Date());
   const [sessionsForDay, setSessionsForDay] = useState<TrainingDay[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
     useState(false);
   const [athletesList, setAthletesList] = useState<any[]>([]);
   const [filteredAthletes, setFilteredAthletes] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>("ASS");
+  const [selectedGroup, setSelectedGroup] = useState<string>("ALL");
+  const [filterGroup, setFilterGroup] = useState<string>("ALL");
 
   const [newSession, setNewSession] = useState<Partial<TrainingDay>>({
     session_id: 0,
@@ -329,27 +422,101 @@ export default function TrainingsScreen() {
     }
   };
 
+  const getWeekDays = () => {
+    const startDate = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday start
+    return Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  };
+
+  const goToPreviousWeek = () => {
+    setCurrentWeek(addDays(currentWeek, -7));
+  };
+
+  const goToNextWeek = () => {
+    setCurrentWeek(addDays(currentWeek, 7));
+  };
+
+  const handleDayPress = (date: Date) => {
+    const dayObj = {
+      dateString: format(date, "yyyy-MM-dd"),
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    };
+    setSelectedDay(dayObj);
+    fetchSessionsForDay(dayObj.dateString);
+  };
+
   return (
     <Container>
-      <Calendar
-        onDayPress={onDayPress}
-        firstDay={1}
-        markedDates={{
-          ...(selectedDay?.dateString
-            ? {
-                [selectedDay.dateString]: {
-                  selected: true,
-                  selectedColor: "blue",
-                  textColor: "white",
-                },
-              }
-            : {}),
-        }}
-        theme={{
-          selectedDayBackgroundColor: "blue",
-          selectedDayTextColor: "white",
-        }}
-      />
+      <WeeklyCalendarContainer>
+        <WeekNavigation>
+          <NavButton onPress={goToPreviousWeek}>
+            <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          </NavButton>
+          <WeekTitle>
+            {format(getWeekDays()[0], "MMM d")} -{" "}
+            {format(getWeekDays()[6], "MMM d, yyyy")}
+          </WeekTitle>
+          <NavButton onPress={goToNextWeek}>
+            <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+          </NavButton>
+        </WeekNavigation>
+
+        <WeekDaysContainer>
+          {getWeekDays().map((date, index) => {
+            const isSelected =
+              selectedDay && isSameDay(date, new Date(selectedDay.dateString));
+            const isToday = isSameDay(date, new Date());
+
+            return (
+              <DayContainer key={index}>
+                <DayLabel>{format(date, "EEE")}</DayLabel>
+                <DayButton
+                  onPress={() => handleDayPress(date)}
+                  isSelected={isSelected}
+                  isToday={isToday}
+                >
+                  <DayText isSelected={isSelected} isToday={isToday}>
+                    {format(date, "d")}
+                  </DayText>
+                </DayButton>
+              </DayContainer>
+            );
+          })}
+        </WeekDaysContainer>
+      </WeeklyCalendarContainer>
+
+      <GroupFilterContainer>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <FilterLabel>Group:</FilterLabel>
+          <View style={{ flex: 1, marginLeft: 15 }}>
+            <Picker
+              selectedValue={filterGroup}
+              onValueChange={(itemValue) => setFilterGroup(itemValue)}
+              style={{
+                backgroundColor: "#f8f9fa",
+                borderRadius: 8,
+              }}
+              itemStyle={{
+                height: 44,
+              }}
+            >
+              <Picker.Item label="All Groups" value="ALL" />
+              <Picker.Item label="ASS" value="ASS" />
+              <Picker.Item label="EA" value="EA" />
+              <Picker.Item label="EB" value="EB" />
+              <Picker.Item label="PROP" value="PROP" />
+            </Picker>
+          </View>
+        </View>
+      </GroupFilterContainer>
+
       {selectedDay && (
         <>
           <Heading>{selectedDay.dateString}</Heading>
@@ -357,7 +524,10 @@ export default function TrainingsScreen() {
             <AddNewButtonText>+</AddNewButtonText>
           </AddNewButton>
           <FlatList
-            data={sessionsForDay}
+            data={sessionsForDay.filter(
+              (session) =>
+                filterGroup === "ALL" || session.groups?.includes(filterGroup)
+            )}
             keyExtractor={(item) =>
               item.session_id
                 ? item.session_id.toString()
@@ -365,8 +535,16 @@ export default function TrainingsScreen() {
             }
             renderItem={({ item }) => (
               <SessionItem>
-                <Text>Session ID: {item.session_id}</Text>
-                <Text>Type: {item.type}</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text>Session ID: {item.session_id}</Text>
+                  <Text>Type: {item.type}</Text>
+                </View>
                 <ButtonContainer>
                   <EditButton onPress={() => editSession(item.session_id)}>
                     <Ionicons name="create-outline" color="#333" size={24} />
@@ -378,7 +556,7 @@ export default function TrainingsScreen() {
                         params: {
                           sessionId: item.session_id,
                           sessionDate: item.date,
-                          selectedGroup,
+                          selectedGroup: filterGroup,
                         },
                       });
                     }}
@@ -442,6 +620,11 @@ export default function TrainingsScreen() {
                 onChangeText={(text: string) =>
                   handleInputChange("description", text)
                 }
+                multiline={true}
+                numberOfLines={6}
+                textAlignVertical="top"
+                scrollEnabled={true}
+                style={{ height: 120, paddingTop: 10 }}
               />
               {/* Hide volume, poolname, poollength if type is Gym */}
               {newSession.type !== "Gym" && (

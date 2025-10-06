@@ -70,13 +70,30 @@ const AttendanceScreen = () => {
     let isMounted = true;
     const fetchData = async () => {
       try {
-        // Fetch athletes for the groups
-        const { data: athletes, error: athletesError } = await supabase
-          .from("athletes")
-          .select("*")
-          .eq("groups", groups);
+        // Calculate season based on session date
+        const sessionDateObj = new Date(sessionDate);
+        const sessionYear = sessionDateObj.getFullYear();
+        const sessionMonth = sessionDateObj.getMonth(); // 0-based (0 = January, 8 = September)
+
+        // Swimming season typically runs Sept-Aug, so if month >= September (8), use current year as start
+        // Otherwise, use previous year as start
+        const seasonStartYear =
+          sessionMonth >= 8 ? sessionYear : sessionYear - 1;
+        const season = `${seasonStartYear}-${String(seasonStartYear + 1).slice(
+          -2
+        )}`;
+
+        // Call the database function get_athletes_with_rosters with both parameters
+        const { data: athletes, error: athletesError } = await supabase.rpc(
+          "get_athletes_with_rosters",
+          {
+            paramseason: season,
+            paramgroups: groups,
+          }
+        );
         if (athletesError) throw athletesError;
-        const sortedAthletes = (athletes || []).sort((a, b) =>
+
+        const sortedAthletes = (athletes || []).sort((a: any, b: any) =>
           a.name.localeCompare(b.name)
         );
 
@@ -88,7 +105,7 @@ const AttendanceScreen = () => {
         if (attendanceError) throw attendanceError;
 
         // Merge attendance status into athletes
-        const merged = sortedAthletes.map((athlete) => {
+        const merged = sortedAthletes.map((athlete: any) => {
           const attendance = attendanceData?.find(
             (a) => a.fincode === athlete.fincode
           );

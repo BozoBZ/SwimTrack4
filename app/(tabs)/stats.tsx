@@ -6,11 +6,12 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  TextInput,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { supabase } from "../../utils/supabaseClient";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 interface Athlete {
   fincode: number;
@@ -25,45 +26,53 @@ interface Athlete {
 export default function StatsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<string>("season");
-  const [customStart, setCustomStart] = useState<string>("");
-  const [customEnd, setCustomEnd] = useState<string>("");
+  const [season, setSeason] = useState<string>("2025-26");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [athleteGroupFilter, setAthleteGroupFilter] = useState<string>("all");
 
+  // Export function placeholder for React Native
+  const exportToExcel = () => {
+    if (athletes.length === 0) {
+      Alert.alert("No Data", "No data to export. Please run a filter first.");
+      return;
+    }
+
+    // In a real React Native app, you would use a library like react-native-fs
+    // or expo-file-system to export data
+    Alert.alert(
+      "Export",
+      "Export functionality would be implemented here using react-native-fs or similar library."
+    );
+  };
+
+  // Fetch attendance summary using the get_attendance_stats_by_season function
   const handleFilter = async () => {
     setLoading(true);
     setError(null);
-    let groupParam = athleteGroupFilter === "all" ? null : athleteGroupFilter;
-    let startDate = "";
-    let endDate = "";
-    if (period === "season") {
-      startDate = "2024-09-01";
-      endDate = "2025-08-31";
-    } else if (period === "month") {
-      const now = new Date();
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString()
-        .slice(0, 10);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-        .toISOString()
-        .slice(0, 10);
-    } else if (period === "custom" && customStart && customEnd) {
-      startDate = customStart;
-      endDate = customEnd;
-    }
+
     let typeParam = typeFilter === "all" ? null : typeFilter;
+    let groupParam = athleteGroupFilter === "all" ? null : athleteGroupFilter;
+
     try {
-      let query = supabase.rpc("riepilogo_presenze", {
-        gruppo: groupParam,
-        start_date: startDate,
-        end_date: endDate,
+      // Debug logging
+      console.log("Calling function with parameters:", {
+        season: season,
         session_type: typeParam,
+        group_name: groupParam,
       });
+
+      // Call the get_attendance_stats_by_season function
+      let query = supabase.rpc("get_attendance_stats_by_season", {
+        season: season,
+        session_type: typeParam,
+        group_name: groupParam,
+      });
+
+      // Order by percent desc
       query = query.order("percent", { ascending: false });
       const { data, error } = await query;
+
       if (error) {
         setError(error.message);
         setAthletes([]);
@@ -79,114 +88,157 @@ export default function StatsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Attendance Filter</Text>
-      <View style={styles.filterRow}>
-        <Text style={styles.label}>Select period:</Text>
-        <Picker
-          selectedValue={period}
-          style={styles.picker}
-          onValueChange={setPeriod}
-        >
-          <Picker.Item
-            label="Season (01.09.2024 - 31.08.2025)"
-            value="season"
-          />
-          <Picker.Item label="Current Month" value="month" />
-          <Picker.Item label="Custom Range" value="custom" />
-        </Picker>
-        {period === "custom" && (
-          <View style={styles.customDateRow}>
-            <Text style={styles.label}>From:</Text>
-            <TextInput
-              style={styles.input}
-              value={customStart}
-              onChangeText={setCustomStart}
-              placeholder="YYYY-MM-DD"
-            />
-            <Text style={styles.label}>To:</Text>
-            <TextInput
-              style={styles.input}
-              value={customEnd}
-              onChangeText={setCustomEnd}
-              placeholder="YYYY-MM-DD"
-            />
-          </View>
-        )}
-        <Text style={styles.label}>Filter Type:</Text>
-        <Picker
-          selectedValue={typeFilter}
-          style={styles.picker}
-          onValueChange={setTypeFilter}
-        >
-          <Picker.Item label="All" value="all" />
-          <Picker.Item label="Swim" value="Swim" />
-          <Picker.Item label="Gym" value="Gym" />
-        </Picker>
+      <Text style={styles.title}>Attendance Summary</Text>
 
-        <Text style={styles.label}>Filter Group:</Text>
-        <Picker
-          selectedValue={athleteGroupFilter}
-          style={styles.picker}
-          onValueChange={setAthleteGroupFilter}
-        >
-          <Picker.Item label="All" value="all" />
-          <Picker.Item label="ASS" value="ASS" />
-          <Picker.Item label="EA" value="EA" />
-          <Picker.Item label="EB" value="EB" />
-          <Picker.Item label="PROP" value="PROP" />
-        </Picker>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleFilter}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? "Filtering..." : "Filter"}
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.filterContainer}>
+        <View style={styles.filterRow}>
+          <Text style={styles.label}>Season:</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={season}
+              onValueChange={setSeason}
+              style={styles.picker}
+            >
+              <Picker.Item label="2023-24" value="2023-24" />
+              <Picker.Item label="2024-25" value="2024-25" />
+              <Picker.Item label="2025-26" value="2025-26" />
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.filterRow}>
+          <Text style={styles.label}>Type:</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={typeFilter}
+              onValueChange={setTypeFilter}
+              style={styles.picker}
+            >
+              <Picker.Item label="All" value="all" />
+              <Picker.Item label="Swim" value="Swim" />
+              <Picker.Item label="Gym" value="Gym" />
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.filterRow}>
+          <Text style={styles.label}>Group:</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={athleteGroupFilter}
+              onValueChange={setAthleteGroupFilter}
+              style={styles.picker}
+            >
+              <Picker.Item label="All" value="all" />
+              <Picker.Item label="ASS" value="ASS" />
+              <Picker.Item label="EA" value="EA" />
+              <Picker.Item label="EB" value="EB" />
+              <Picker.Item label="PROP" value="PROP" />
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={handleFilter}
+            disabled={loading}
+          >
+            <Ionicons name="filter" size={20} color="#fff" />
+            <Text style={styles.buttonText}>
+              {loading ? "Loading..." : "Filter"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.exportButton,
+              { opacity: athletes.length === 0 ? 0.5 : 1 },
+            ]}
+            onPress={exportToExcel}
+            disabled={loading || athletes.length === 0}
+          >
+            <Ionicons name="download" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Export</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       {error && <Text style={styles.errorText}>Error: {error}</Text>}
-      <Text style={styles.title}>
-        Group: {athleteGroupFilter === "all" ? "All" : athleteGroupFilter}
-      </Text>
-      <View style={styles.tableHeader}>
-        <Text style={styles.tableHeaderCell}>Port</Text>
-        <Text style={styles.tableHeaderCell}>Name</Text>
-        <Text style={styles.tableHeaderCell}>Percent</Text>
-      </View>
+
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#ffd33d"
-          style={{ marginTop: 20 }}
+          color="#007AFF"
+          style={styles.loadingIndicator}
         />
       ) : (
-        athletes.map((ath, idx) => (
-          <View key={ath.fincode || idx} style={styles.tableRow}>
-            <View style={styles.portraitCell}>
-              {ath.photo ? (
-                <Image
-                  source={{ uri: ath.photo }}
-                  style={styles.portrait}
-                  onError={() => {}}
-                />
-              ) : (
-                <Image
-                  source={{
-                    uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      ath.name || "Avatar"
-                    )}&background=cccccc&color=ffffff&size=50`,
-                  }}
-                  style={styles.portrait}
-                />
-              )}
+        <>
+          <Text style={styles.groupTitle}>
+            Group: {athleteGroupFilter === "all" ? "All" : athleteGroupFilter}
+          </Text>
+
+          <View style={styles.tableContainer}>
+            <View style={styles.tableHeader}>
+              <Text style={styles.tableHeaderCell}>Ph</Text>
+              <Text style={styles.tableHeaderCell}>Name</Text>
+              <Text style={styles.tableHeaderCell}>P</Text>
+              <Text style={styles.tableHeaderCell}>J</Text>
+              <Text style={styles.tableHeaderCell}>T</Text>
+              <Text style={styles.tableHeaderCell}>%</Text>
             </View>
-            <Text style={styles.tableCell}>{ath.name}</Text>
-            <Text style={styles.tableCell}>
-              {ath.percent != null ? ath.percent.toFixed(1) + "%" : ""}
-            </Text>
+
+            {athletes.length === 0 ? (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>
+                  No data available for the selected filters
+                </Text>
+              </View>
+            ) : (
+              athletes.map((ath, idx) => (
+                <View key={ath.fincode || idx} style={styles.tableRow}>
+                  <View style={styles.portraitCell}>
+                    {ath.photo ? (
+                      <Image
+                        source={{ uri: ath.photo }}
+                        style={styles.portrait}
+                        onError={() => {}}
+                      />
+                    ) : (
+                      <Image
+                        source={{
+                          uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            ath.name || "Avatar"
+                          )}&background=cccccc&color=ffffff&size=50`,
+                        }}
+                        style={styles.portrait}
+                      />
+                    )}
+                  </View>
+                  <Text style={styles.tableCell}>{ath.name}</Text>
+                  <Text style={styles.tableCell}>{ath.presenze}</Text>
+                  <Text style={styles.tableCell}>{ath.giustificate}</Text>
+                  <Text style={styles.tableCell}>{ath.total_sessions}</Text>
+                  <Text style={styles.tableCell}>
+                    {ath.percent != null ? ath.percent.toFixed(1) + "%" : ""}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
-        ))
+
+          {athletes.length > 0 && (
+            <View style={styles.summaryContainer}>
+              <Text style={styles.summaryText}>
+                Showing {athletes.length} athletes
+              </Text>
+              <Text style={styles.noteText}>
+                Note: Attendance percentages are calculated based on total
+                sessions in the selected period
+              </Text>
+            </View>
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -195,94 +247,174 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#25292e",
-    padding: 10,
+    backgroundColor: "#f0f0f0",
+    padding: 20,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#ffd33d",
-    marginVertical: 10,
+    color: "#333",
+    marginBottom: 20,
     textAlign: "center",
   },
+  filterContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
   filterRow: {
-    backgroundColor: "#333",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 16,
-  },
-  label: {
-    color: "#fff",
-    marginTop: 8,
-  },
-  picker: {
-    color: "#fff",
-    backgroundColor: "#444",
-    marginVertical: 4,
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    padding: 6,
-    marginHorizontal: 4,
-    minWidth: 100,
-  },
-  customDateRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    marginBottom: 15,
   },
-  button: {
-    backgroundColor: "#ffd33d",
-    borderRadius: 6,
-    padding: 10,
-    marginTop: 12,
+  label: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    width: 80,
+  },
+  pickerContainer: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  picker: {
+    height: 50,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  filterButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 10,
+    justifyContent: "center",
+  },
+  exportButton: {
+    backgroundColor: "#28a745",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: "center",
   },
   buttonText: {
-    color: "#25292e",
+    color: "#fff",
     fontWeight: "bold",
+    marginLeft: 8,
   },
   errorText: {
     color: "red",
-    marginVertical: 8,
+    fontSize: 16,
     textAlign: "center",
+    marginVertical: 10,
+    backgroundColor: "#ffebee",
+    padding: 10,
+    borderRadius: 8,
+  },
+  loadingIndicator: {
+    marginTop: 50,
+  },
+  groupTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  tableContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#444",
-    borderRadius: 6,
-    marginTop: 20,
-    padding: 6,
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   tableHeaderCell: {
     flex: 1,
-    color: "#ffd33d",
+    color: "#fff",
     fontWeight: "bold",
     textAlign: "center",
+    fontSize: 12,
   },
   tableRow: {
     flexDirection: "row",
-    backgroundColor: "#333",
-    borderRadius: 6,
-    marginTop: 6,
-    padding: 6,
+    backgroundColor: "#ffffff",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
     alignItems: "center",
   },
   tableCell: {
     flex: 1,
-    color: "#fff",
+    color: "#333",
     textAlign: "center",
+    fontSize: 12,
   },
   portraitCell: {
     flex: 1,
     alignItems: "center",
   },
   portrait: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#ccc",
+  },
+  noDataContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  noDataText: {
+    color: "#666",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  summaryContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  summaryText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  noteText: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
   },
 });

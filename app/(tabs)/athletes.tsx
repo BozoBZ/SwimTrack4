@@ -48,6 +48,7 @@ const AthletesScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   const groupOptions = [
     { label: "Select a group...", value: "" },
@@ -56,6 +57,59 @@ const AthletesScreen = () => {
     { label: "EB", value: "EB" },
     { label: "PROP", value: "PROP" },
   ];
+
+  // Helper function to process photo URLs and handle problematic sources
+  const processPhotoUrl = (photoUrl: string): string | null => {
+    if (!photoUrl || typeof photoUrl !== "string") {
+      return null;
+    }
+
+    // Handle various URL formats and potential issues
+    try {
+      // Trim whitespace and check for valid URL format
+      const cleanUrl = photoUrl.trim();
+
+      if (!cleanUrl || cleanUrl === "null" || cleanUrl === "undefined") {
+        return null;
+      }
+
+      // Handle Google Drive URLs
+      if (cleanUrl.includes("drive.google.com")) {
+        const fileIdMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (fileIdMatch && fileIdMatch[1]) {
+          return `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
+        }
+        return null; // Invalid Google Drive URL format
+      }
+
+      // Allow Flickr URLs but add note about rate limiting
+      if (
+        cleanUrl.includes("flickr.com") ||
+        cleanUrl.includes("staticflickr.com")
+      ) {
+        // Flickr URLs may hit rate limits (HTTP 429) when loading multiple images
+        // The onError handler will gracefully fall back to default avatars
+        return cleanUrl;
+      }
+
+      // Basic URL validation for other sources
+      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+        return cleanUrl;
+      }
+
+      // Invalid URL format
+      return null;
+    } catch (error) {
+      console.error("Error processing photo URL:", photoUrl, error);
+      return null;
+    }
+  };
+
+  // Helper function to handle image errors
+  const handleImageError = (fincode: number | string) => {
+    const key = fincode?.toString() || "unknown";
+    setImageErrors((prev) => new Set([...prev, key]));
+  };
 
   useEffect(() => {
     // Fetch seasons from the database
@@ -98,6 +152,7 @@ const AthletesScreen = () => {
   ) => {
     setLoading(true);
     setError(null);
+    setImageErrors(new Set()); // Clear previous image errors
 
     try {
       // Test basic connection first
@@ -235,24 +290,40 @@ const AthletesScreen = () => {
         );
       }
 
-      // Convert Google Drive URLs to direct links
-      if (item.photo && item.photo.includes("drive.google.com")) {
-        const fileIdMatch = item.photo.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (fileIdMatch) {
-          item.photo = `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
-        }
-      }
+      const athleteKey = item.fincode?.toString() || item.name || "unknown";
+      const hasImageError = imageErrors.has(athleteKey);
+
+      // Get the processed photo URL - now allows Flickr URLs but they may hit rate limits
+      const photoUrl = item.photo ? processPhotoUrl(item.photo) : null;
+
+      // Only try to load image if we have a valid URL and no previous error
+      const shouldLoadImage = photoUrl && !hasImageError;
 
       return (
         <View style={styles.athleteRow}>
-          {item.photo ? (
+          {shouldLoadImage ? (
             <Image
-              source={{ uri: item.photo }}
+              source={{ uri: photoUrl }}
               style={styles.portrait}
               onError={(error) => {
-                console.error("Image failed to load:", error.nativeEvent);
-                // Fallback to a default image
-                item.photo = undefined;
+                const errorMsg = error.nativeEvent?.error || "";
+                if (
+                  errorMsg.includes("429") ||
+                  errorMsg.includes("Too Many Requests")
+                ) {
+                  console.warn(
+                    `Rate limited by image server for athlete ${item.name}. Using default avatar.`
+                  );
+                } else {
+                  console.error(
+                    `Image failed to load for athlete ${item.name} (${athleteKey}):`,
+                    "URL:",
+                    photoUrl,
+                    "Error:",
+                    error.nativeEvent
+                  );
+                }
+                handleImageError(athleteKey);
               }}
             />
           ) : (
