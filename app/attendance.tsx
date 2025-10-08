@@ -37,6 +37,23 @@ const AttendanceScreen = () => {
   const [filteredAthletes, setFilteredAthletes] = useState<
     { name: string; fincode: string; status?: string }[]
   >([]);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
+  // Helper function to generate Supabase storage URL for athlete portraits
+  const getPortraitUrl = (fincode: number | string): string | null => {
+    if (!fincode) {
+      return null;
+    }
+
+    // Generate the Supabase storage URL using fincode
+    return `https://rxwlwfhytiwzvntpwlyj.supabase.co/storage/v1/object/public/PortraitPics/${fincode}.jpg`;
+  };
+
+  // Helper function to handle image errors
+  const handleImageError = (fincode: number | string) => {
+    const key = fincode?.toString() || "unknown";
+    setImageErrors((prev) => new Set([...prev, key]));
+  };
 
   // Helper to cycle status
   const cycleStatus = (currentStatus?: string) => {
@@ -152,21 +169,47 @@ const AttendanceScreen = () => {
 
     return (
       <View style={rowStyle}>
-        {item.photo ? (
-          <Image
-            source={{ uri: item.photo }}
-            style={styles.portrait}
-            onError={(error) => {
-              console.error("Image failed to load:", error.nativeEvent);
-              item.photo = undefined;
-            }}
-          />
-        ) : (
-          <Image
-            source={require("@/assets/images/default-avatar.png")}
-            style={styles.portrait}
-          />
-        )}
+        {(() => {
+          const athleteKey = item.fincode?.toString() || "unknown";
+          const hasImageError = imageErrors.has(athleteKey);
+
+          // Get the portrait URL from Supabase storage using fincode
+          const photoUrl = item.fincode ? getPortraitUrl(item.fincode) : null;
+
+          // Simple image loading - let React Native handle optimization
+          const shouldLoadImage = photoUrl && !hasImageError;
+
+          return shouldLoadImage ? (
+            <Image
+              source={{ uri: photoUrl }}
+              style={styles.portrait}
+              onLoad={() => {
+                // Image loaded successfully
+              }}
+              onError={(error) => {
+                const errorMsg = error.nativeEvent?.error || "";
+                // Handle various error codes that indicate file doesn't exist
+                if (
+                  errorMsg.includes("404") ||
+                  errorMsg.includes("Not Found") ||
+                  errorMsg.includes("400") ||
+                  errorMsg.includes("Bad Request") ||
+                  errorMsg.includes("Unexpected HTTP code")
+                ) {
+                  console.log(
+                    `Portrait not found in Supabase storage for athlete ${item.name} (fincode: ${item.fincode}). Using default avatar.`
+                  );
+                }
+                handleImageError(item.fincode);
+              }}
+            />
+          ) : (
+            <Image
+              source={require("@/assets/images/default-avatar.png")}
+              style={styles.portrait}
+            />
+          );
+        })()}
         <Text
           onPress={() => handleNamePress(item.fincode)}
           style={{ fontWeight: "bold", fontSize: 16 }}

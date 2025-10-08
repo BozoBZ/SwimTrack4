@@ -58,51 +58,33 @@ const AthletesScreen = () => {
     { label: "PROP", value: "PROP" },
   ];
 
-  // Helper function to process photo URLs and handle problematic sources
-  const processPhotoUrl = (photoUrl: string): string | null => {
-    if (!photoUrl || typeof photoUrl !== "string") {
+  // Helper function to generate Supabase storage URL for athlete portraits
+  const getPortraitUrl = (fincode: number | string): string | null => {
+    if (!fincode) {
       return null;
     }
 
-    // Handle various URL formats and potential issues
-    try {
-      // Trim whitespace and check for valid URL format
-      const cleanUrl = photoUrl.trim();
+    // Generate the Supabase storage URL using fincode
+    return `https://rxwlwfhytiwzvntpwlyj.supabase.co/storage/v1/object/public/PortraitPics/${fincode}.jpg`;
+  };
 
-      if (!cleanUrl || cleanUrl === "null" || cleanUrl === "undefined") {
-        return null;
-      }
-
-      // Handle Google Drive URLs
-      if (cleanUrl.includes("drive.google.com")) {
-        const fileIdMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (fileIdMatch && fileIdMatch[1]) {
-          return `https://drive.google.com/uc?id=${fileIdMatch[1]}`;
-        }
-        return null; // Invalid Google Drive URL format
-      }
-
-      // Allow Flickr URLs but add note about rate limiting
-      if (
-        cleanUrl.includes("flickr.com") ||
-        cleanUrl.includes("staticflickr.com")
-      ) {
-        // Flickr URLs may hit rate limits (HTTP 429) when loading multiple images
-        // The onError handler will gracefully fall back to default avatars
-        return cleanUrl;
-      }
-
-      // Basic URL validation for other sources
-      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-        return cleanUrl;
-      }
-
-      // Invalid URL format
-      return null;
-    } catch (error) {
-      console.error("Error processing photo URL:", photoUrl, error);
-      return null;
-    }
+  // Helper function to add timeout to database calls
+  const withTimeout = (
+    promise: PromiseLike<any>,
+    timeoutMs: number = 30000
+  ): Promise<any> => {
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(`Database request timed out after ${timeoutMs}ms`)
+            ),
+          timeoutMs
+        )
+      ),
+    ]);
   };
 
   // Helper function to handle image errors
@@ -150,19 +132,33 @@ const AthletesScreen = () => {
     season: string,
     group: string
   ) => {
+    // Prevent multiple simultaneous requests
+    if (loading) {
+      console.log("Request already in progress, skipping...");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setImageErrors(new Set()); // Clear previous image errors
 
     try {
-      // Test basic connection first
-      const testConnection = await supabase.from("athletes").select("count");
+      // Test basic connection first with timeout
+      console.log("Testing database connection...");
+      await withTimeout(
+        supabase.from("athletes").select("count"),
+        10000 // 10 second timeout for connection test
+      );
 
-      // Call the database function get_athletes_with_rosters with both parameters
-      const { data, error } = await supabase.rpc("get_athletes_with_rosters", {
-        paramseason: season,
-        paramgroups: group,
-      });
+      console.log("Fetching athletes data...");
+      // Call the database function get_athletes_with_rosters with timeout
+      const { data, error } = await withTimeout(
+        supabase.rpc("get_athletes_with_rosters", {
+          paramseason: season,
+          paramgroups: group,
+        }),
+        30000 // 30 second timeout for main query
+      );
 
       if (error) {
         console.error("Database error:", error);
@@ -215,7 +211,21 @@ const AthletesScreen = () => {
       setFilteredAthletes(sortedAthletes);
     } catch (err: any) {
       console.error("Catch block error:", err);
-      setError(`Error fetching athletes: ${err?.message || "Unknown error"}`);
+
+      // Handle specific error types
+      let errorMessage = "Unknown error occurred";
+      if (err?.message?.includes("timed out")) {
+        errorMessage =
+          "Database request timed out. Please check your connection and try again.";
+      } else if (err?.message?.includes("network")) {
+        errorMessage = "Network error. Please check your internet connection.";
+      } else if (err?.code === "PGRST116") {
+        errorMessage = "Database function not found. Please contact support.";
+      } else if (err?.message) {
+        errorMessage = `Error fetching athletes: ${err.message}`;
+      }
+
+      setError(errorMessage);
       setAthletes([]);
       setFilteredAthletes([]);
     } finally {
@@ -237,22 +247,31 @@ const AthletesScreen = () => {
     if (!selectedAthlete) return;
 
     try {
-      const { error } = await supabase
-        .from("athletes")
-        .update(selectedAthlete)
-        .eq("fincode", selectedAthlete.fincode);
+      console.log("Saving athlete data...");
+      const { error } = await withTimeout(
+        supabase
+          .from("athletes")
+          .update(selectedAthlete)
+          .eq("fincode", selectedAthlete.fincode),
+        15000 // 15 second timeout for save operation
+      );
 
       if (error) {
         throw error;
       }
 
+      console.log("Athlete saved successfully");
       // Refetch data after saving
       if (selectedSeason && selectedGroup && selectedGroup !== "") {
         await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
       }
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving athlete:", error);
+      const errorMsg = error?.message?.includes("timed out")
+        ? "Save operation timed out. Please try again."
+        : `Error saving athlete: ${error?.message || "Unknown error"}`;
+      setError(errorMsg);
     }
   };
 
@@ -260,26 +279,35 @@ const AthletesScreen = () => {
     if (!selectedAthlete) return;
 
     try {
-      const { error } = await supabase
-        .from("athletes")
-        .delete()
-        .eq("fincode", selectedAthlete.fincode);
+      console.log("Deleting athlete...");
+      const { error } = await withTimeout(
+        supabase
+          .from("athletes")
+          .delete()
+          .eq("fincode", selectedAthlete.fincode),
+        15000 // 15 second timeout for delete operation
+      );
 
       if (error) {
         throw error;
       }
 
+      console.log("Athlete deleted successfully");
       // Refetch data after deleting
       if (selectedSeason && selectedGroup && selectedGroup !== "") {
         await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
       }
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting athlete:", error);
+      const errorMsg = error?.message?.includes("timed out")
+        ? "Delete operation timed out. Please try again."
+        : `Error deleting athlete: ${error?.message || "Unknown error"}`;
+      setError(errorMsg);
     }
   };
 
-  const renderAthlete = ({ item }: { item: Athlete }) => {
+  const renderAthlete = ({ item, index }: { item: Athlete; index: number }) => {
     try {
       // Ensure item exists
       if (!item) {
@@ -293,10 +321,10 @@ const AthletesScreen = () => {
       const athleteKey = item.fincode?.toString() || item.name || "unknown";
       const hasImageError = imageErrors.has(athleteKey);
 
-      // Get the processed photo URL - now allows Flickr URLs but they may hit rate limits
-      const photoUrl = item.photo ? processPhotoUrl(item.photo) : null;
+      // Get the portrait URL from Supabase storage using fincode
+      const photoUrl = item.fincode ? getPortraitUrl(item.fincode) : null;
 
-      // Only try to load image if we have a valid URL and no previous error
+      // Simple image loading - let React Native handle optimization
       const shouldLoadImage = photoUrl && !hasImageError;
 
       return (
@@ -305,18 +333,25 @@ const AthletesScreen = () => {
             <Image
               source={{ uri: photoUrl }}
               style={styles.portrait}
+              onLoad={() => {
+                // Image loaded successfully
+              }}
               onError={(error) => {
                 const errorMsg = error.nativeEvent?.error || "";
+                // Handle various error codes that indicate file doesn't exist
                 if (
-                  errorMsg.includes("429") ||
-                  errorMsg.includes("Too Many Requests")
+                  errorMsg.includes("404") ||
+                  errorMsg.includes("Not Found") ||
+                  errorMsg.includes("400") ||
+                  errorMsg.includes("Bad Request") ||
+                  errorMsg.includes("Unexpected HTTP code")
                 ) {
-                  console.warn(
-                    `Rate limited by image server for athlete ${item.name}. Using default avatar.`
+                  console.log(
+                    `Portrait not found in Supabase storage for athlete ${item.name} (fincode: ${item.fincode}). Using default avatar.`
                   );
                 } else {
                   console.error(
-                    `Image failed to load for athlete ${item.name} (${athleteKey}):`,
+                    `Failed to load portrait for athlete ${item.name} (${athleteKey}):`,
                     "URL:",
                     photoUrl,
                     "Error:",
@@ -433,10 +468,16 @@ const AthletesScreen = () => {
                 return `athlete_error_${index}`;
               }
             }}
-            renderItem={renderAthlete}
-            removeClippedSubviews={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
+            renderItem={({ item, index }) => renderAthlete({ item, index })}
+            removeClippedSubviews={true}
+            initialNumToRender={8}
+            maxToRenderPerBatch={3}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 80, // Approximate height of each row
+              offset: 80 * index,
+              index,
+            })}
           />
         )}
 

@@ -265,30 +265,15 @@ export default function TrendScreen() {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => {
-              // Trigger data refresh by updating loading state
-              setLoading(true);
-              setTimeout(() => setLoading(false), 100);
-            }}
-            disabled={loading}
-          >
-            <Ionicons name="trending-up" size={20} color="#fff" />
-            <Text style={styles.buttonText}>
-              {loading ? "Loading..." : "Analyze"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[
-              styles.exportButton,
-              { opacity: chartData.length === 0 ? 0.5 : 1 },
+              styles.chartButton,
+              { opacity: selectedFincode === "all" ? 0.5 : 1 },
             ]}
-            onPress={exportToExcel}
-            disabled={loading || chartData.length === 0}
+            onPress={openChartModal}
+            disabled={loading || selectedFincode === "all"}
           >
-            <Ionicons name="download" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Export</Text>
+            <Ionicons name="analytics" size={20} color="#fff" />
+            <Text style={styles.buttonText}>View Chart</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -311,23 +296,12 @@ export default function TrendScreen() {
                 "Unknown"}
           </Text>
 
-          {selectedFincode === "all" ? (
+          {selectedFincode === "all" && (
             <View style={styles.noDataContainer}>
               <Text style={styles.noDataText}>
                 Please select an athlete to view their attendance trend
               </Text>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.chartPreviewButton}
-              onPress={openChartModal}
-            >
-              <Ionicons name="analytics" size={40} color="#007AFF" />
-              <Text style={styles.chartPreviewText}>View Full Chart</Text>
-              <Text style={styles.chartPreviewSubtext}>
-                Tap to open in landscape mode
-              </Text>
-            </TouchableOpacity>
           )}
 
           {/* Full Screen Chart Modal */}
@@ -355,144 +329,180 @@ export default function TrendScreen() {
                 horizontal
                 style={styles.fullScreenChartScrollView}
                 contentContainerStyle={{
-                  minWidth: Dimensions.get("window").height - 120, // Account for header padding
-                  paddingVertical: 10,
-                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  paddingHorizontal: 5,
                 }}
                 showsHorizontalScrollIndicator={true}
               >
                 <Svg
-                  width={Dimensions.get("window").height - 140} // Full landscape width minus padding
-                  height={Dimensions.get("window").width - 140} // Full landscape height minus header and padding
+                  width={Math.max(
+                    Dimensions.get("window").height - 20,
+                    months.length * 50 + 140
+                  )} // Increased width for better label space
+                  height={Dimensions.get("window").width - 60} // Reduced height for shorter header
                   style={styles.fullScreenChartSvg}
                 >
-                  {/* Y axis grid */}
-                  {[0, 20, 40, 60, 80, 100].map((y) => {
-                    const fullScreenHeight =
-                      Dimensions.get("window").width - 200; // Available height minus header and padding
-                    const fullScreenWidth =
-                      Dimensions.get("window").height - 140; // Available width
-                    const fullScreenPadding = 80;
-                    return (
-                      <G key={y}>
-                        <Line
-                          x1={fullScreenPadding}
-                          x2={fullScreenWidth - fullScreenPadding}
-                          y1={
-                            50 + fullScreenHeight - (y / 100) * fullScreenHeight
-                          }
-                          y2={
-                            50 + fullScreenHeight - (y / 100) * fullScreenHeight
-                          }
-                          stroke="#ddd"
-                          strokeWidth={1}
-                        />
-                        <SvgText
-                          x={fullScreenPadding - 15}
-                          y={
-                            50 +
-                            fullScreenHeight -
-                            (y / 100) * fullScreenHeight +
-                            6
-                          }
-                          fontSize={18}
-                          textAnchor="end"
-                          fill="#333"
-                          fontWeight="bold"
-                        >
-                          {y}%
-                        </SvgText>
-                      </G>
+                  {(() => {
+                    // Calculate responsive dimensions for mobile landscape
+                    const screenHeight = Dimensions.get("window").width - 60; // Less space taken by header
+                    const screenWidth = Math.max(
+                      Dimensions.get("window").height - 20,
+                      months.length * 50 + 140
                     );
-                  })}
+                    const leftPadding = 55; // Reduced padding to move chart left
+                    const rightPadding = 20;
+                    const topPadding = 40; // Space for value labels above points
+                    const bottomPadding = 60; // Space for month labels
 
-                  {/* Line chart */}
-                  {months.map((m, i) => {
-                    const data = chartData.find((cd) => cd.month === m);
-                    const val = data?.attendance_percentage || 0;
-                    const pointColor = val >= 80 ? "#4caf50" : "#f44336";
-
-                    const fullScreenHeight =
-                      Dimensions.get("window").width - 200;
-                    const fullScreenWidth =
-                      Dimensions.get("window").height - 140;
-                    const fullScreenPadding = 80;
-                    const availableWidth =
-                      fullScreenWidth - 2 * fullScreenPadding;
-                    const fullScreenSpacing =
-                      availableWidth / (months.length - 1);
-
-                    const x = fullScreenPadding + i * fullScreenSpacing;
-                    const y =
-                      50 + fullScreenHeight - (val / 100) * fullScreenHeight;
+                    // Reduce chart height so Y-axis labels are closer together
+                    const maxChartHeight = 180; // Compact height for mobile landscape
+                    const availableHeight =
+                      screenHeight - topPadding - bottomPadding;
+                    const chartHeight = Math.min(
+                      maxChartHeight,
+                      availableHeight
+                    );
+                    const chartWidth = screenWidth - leftPadding - rightPadding;
+                    const pointSpacing =
+                      chartWidth / Math.max(months.length - 1, 1);
 
                     return (
-                      <G key={m}>
-                        {/* Data point circle */}
-                        <Circle
-                          cx={x}
-                          cy={y}
-                          r={8}
-                          fill={pointColor}
-                          stroke="white"
-                          strokeWidth={4}
+                      <G>
+                        {/* Y axis grid lines and labels */}
+                        {[0, 20, 40, 60, 80, 100].map((y) => {
+                          const yPosition =
+                            topPadding + chartHeight - (y / 100) * chartHeight;
+                          return (
+                            <G key={y}>
+                              {/* Grid line */}
+                              <Line
+                                x1={leftPadding}
+                                x2={leftPadding + chartWidth}
+                                y1={yPosition}
+                                y2={yPosition}
+                                stroke={y === 0 ? "#999" : "#ddd"}
+                                strokeWidth={y === 0 ? 2 : 1}
+                              />
+                              {/* Y-axis label */}
+                              <SvgText
+                                x={leftPadding - 15} // Adjusted for reduced left padding
+                                y={yPosition + 4}
+                                fontSize={16} // Slightly larger font
+                                textAnchor="end"
+                                fill="#333"
+                                fontWeight="bold"
+                              >
+                                {y}%
+                              </SvgText>
+                            </G>
+                          );
+                        })}
+
+                        {/* X axis line */}
+                        <Line
+                          x1={leftPadding}
+                          x2={leftPadding + chartWidth}
+                          y1={topPadding + chartHeight}
+                          y2={topPadding + chartHeight}
+                          stroke="#999"
+                          strokeWidth={2}
                         />
 
-                        {/* Line to next point */}
-                        {i < months.length - 1 &&
-                          (() => {
-                            const nextData = chartData.find(
-                              (cd) => cd.month === months[i + 1]
-                            );
-                            const nextVal =
-                              nextData?.attendance_percentage || 0;
-                            const nextX =
-                              fullScreenPadding + (i + 1) * fullScreenSpacing;
-                            const nextY =
-                              50 +
-                              fullScreenHeight -
-                              (nextVal / 100) * fullScreenHeight;
+                        {/* Data points, lines, and labels */}
+                        {months.map((month, i) => {
+                          const data = chartData.find(
+                            (cd) => cd.month === month
+                          );
+                          const value = data?.attendance_percentage || 0;
+                          const pointColor =
+                            value >= 80 ? "#4caf50" : "#f44336";
 
-                            return (
+                          const x = leftPadding + i * pointSpacing;
+                          const y =
+                            topPadding +
+                            chartHeight -
+                            (value / 100) * chartHeight;
+
+                          return (
+                            <G key={month}>
+                              {/* Line to next point */}
+                              {i < months.length - 1 &&
+                                (() => {
+                                  const nextData = chartData.find(
+                                    (cd) => cd.month === months[i + 1]
+                                  );
+                                  const nextValue =
+                                    nextData?.attendance_percentage || 0;
+                                  const nextX =
+                                    leftPadding + (i + 1) * pointSpacing;
+                                  const nextY =
+                                    topPadding +
+                                    chartHeight -
+                                    (nextValue / 100) * chartHeight;
+
+                                  return (
+                                    <Line
+                                      x1={x}
+                                      y1={y}
+                                      x2={nextX}
+                                      y2={nextY}
+                                      stroke="#666"
+                                      strokeWidth={3}
+                                    />
+                                  );
+                                })()}
+
+                              {/* Data point circle */}
+                              <Circle
+                                cx={x}
+                                cy={y}
+                                r={6}
+                                fill={pointColor}
+                                stroke="white"
+                                strokeWidth={3}
+                              />
+
+                              {/* Month label below X axis */}
+                              <SvgText
+                                x={x}
+                                y={topPadding + chartHeight + 20}
+                                fontSize={12}
+                                textAnchor="middle"
+                                fill="#333"
+                                fontWeight="bold"
+                              >
+                                {month.slice(5)} {/* Show only month (MM) */}
+                              </SvgText>
+
+                              {/* Value label above point */}
+                              {value > 0 && (
+                                <SvgText
+                                  x={x}
+                                  y={y - 12}
+                                  fontSize={12}
+                                  textAnchor="middle"
+                                  fill="#333"
+                                  fontWeight="bold"
+                                >
+                                  {`${value}%`}
+                                </SvgText>
+                              )}
+
+                              {/* Vertical grid line at each month */}
                               <Line
                                 x1={x}
-                                y1={y}
-                                x2={nextX}
-                                y2={nextY}
-                                stroke="#666"
-                                strokeWidth={4}
+                                x2={x}
+                                y1={topPadding + chartHeight}
+                                y2={topPadding + chartHeight + 5}
+                                stroke="#999"
+                                strokeWidth={1}
                               />
-                            );
-                          })()}
-
-                        {/* Month label */}
-                        <SvgText
-                          x={x}
-                          y={50 + fullScreenHeight + 35}
-                          fontSize={16}
-                          textAnchor="middle"
-                          fill="#333"
-                          fontWeight="bold"
-                        >
-                          {m.slice(5)}
-                        </SvgText>
-
-                        {/* Value label above point */}
-                        {val > 0 && (
-                          <SvgText
-                            x={x}
-                            y={y - 15}
-                            fontSize={16}
-                            textAnchor="middle"
-                            fill="#333"
-                            fontWeight="bold"
-                          >
-                            {`${val}%`}
-                          </SvgText>
-                        )}
+                            </G>
+                          );
+                        })}
                       </G>
                     );
-                  })}
+                  })()}
                 </Svg>
               </ScrollView>
             </View>
@@ -583,6 +593,16 @@ const styles = StyleSheet.create({
   },
   exportButton: {
     backgroundColor: "#28a745",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: "center",
+  },
+  chartButton: {
+    backgroundColor: "#007AFF",
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
@@ -704,7 +724,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    padding: 8, // Much shorter header
     backgroundColor: "#ffffff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -713,15 +733,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 14, // Smaller font for compact header
     fontWeight: "bold",
     color: "#333",
     flex: 1,
   },
   closeButton: {
-    padding: 8,
+    padding: 4, // Smaller close button
     backgroundColor: "#f8f9fa",
-    borderRadius: 20,
+    borderRadius: 15,
   },
   fullScreenChartScrollView: {
     flex: 1,

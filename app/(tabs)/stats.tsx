@@ -30,6 +30,38 @@ export default function StatsScreen() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [athleteGroupFilter, setAthleteGroupFilter] = useState<string>("all");
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
+  // Helper function to generate Supabase storage URL for athlete portraits
+  const getPortraitUrl = (fincode: number | string): string | null => {
+    if (!fincode) {
+      return null;
+    }
+
+    // Generate the Supabase storage URL using fincode
+    return `https://rxwlwfhytiwzvntpwlyj.supabase.co/storage/v1/object/public/PortraitPics/${fincode}.jpg`;
+  };
+
+  // Helper function to handle image errors
+  const handleImageError = (fincode: number | string) => {
+    const key = fincode?.toString() || "unknown";
+    setImageErrors((prev) => new Set([...prev, key]));
+  };
+
+  // Helper function to clear image errors (for retry)
+  const clearImageError = (fincode: number | string) => {
+    const key = fincode?.toString() || "unknown";
+    setImageErrors((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+      return newSet;
+    });
+  };
+
+  // Helper function to clear all image errors
+  const clearAllImageErrors = () => {
+    setImageErrors(new Set());
+  };
 
   // Export function placeholder for React Native
   const exportToExcel = () => {
@@ -50,18 +82,13 @@ export default function StatsScreen() {
   const handleFilter = async () => {
     setLoading(true);
     setError(null);
+    // Clear image errors to allow retry
+    clearAllImageErrors();
 
     let typeParam = typeFilter === "all" ? null : typeFilter;
     let groupParam = athleteGroupFilter === "all" ? null : athleteGroupFilter;
 
     try {
-      // Debug logging
-      console.log("Calling function with parameters:", {
-        season: season,
-        session_type: typeParam,
-        group_name: groupParam,
-      });
-
       // Call the get_attendance_stats_by_season function
       let query = supabase.rpc("get_attendance_stats_by_season", {
         season: season,
@@ -180,11 +207,8 @@ export default function StatsScreen() {
 
           <View style={styles.tableContainer}>
             <View style={styles.tableHeader}>
-              <Text style={styles.tableHeaderCell}>Ph</Text>
-              <Text style={styles.tableHeaderCell}>Name</Text>
-              <Text style={styles.tableHeaderCell}>P</Text>
-              <Text style={styles.tableHeaderCell}>J</Text>
-              <Text style={styles.tableHeaderCell}>T</Text>
+              <Text style={styles.tableHeaderCell}>Photo</Text>
+              <Text style={styles.tableHeaderCell}>Athlete Data</Text>
               <Text style={styles.tableHeaderCell}>%</Text>
             </View>
 
@@ -198,28 +222,60 @@ export default function StatsScreen() {
               athletes.map((ath, idx) => (
                 <View key={ath.fincode || idx} style={styles.tableRow}>
                   <View style={styles.portraitCell}>
-                    {ath.photo ? (
-                      <Image
-                        source={{ uri: ath.photo }}
-                        style={styles.portrait}
-                        onError={() => {}}
-                      />
-                    ) : (
-                      <Image
-                        source={{
-                          uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            ath.name || "Avatar"
-                          )}&background=cccccc&color=ffffff&size=50`,
-                        }}
-                        style={styles.portrait}
-                      />
-                    )}
+                    {(() => {
+                      const athleteKey = ath.fincode?.toString() || "unknown";
+                      const hasImageError = imageErrors.has(athleteKey);
+
+                      // Get the portrait URL from Supabase storage using fincode
+                      const photoUrl = ath.fincode
+                        ? getPortraitUrl(ath.fincode)
+                        : null;
+
+                      // Simple image loading - let React Native handle optimization
+                      const shouldLoadImage = photoUrl && !hasImageError;
+
+                      return shouldLoadImage ? (
+                        <Image
+                          source={{ uri: photoUrl }}
+                          style={styles.portrait}
+                          onLoad={() => {
+                            // Image loaded successfully
+                          }}
+                          onError={(error) => {
+                            const errorMsg = error.nativeEvent?.error || "";
+                            // Handle various error codes that indicate file doesn't exist
+                            if (
+                              errorMsg.includes("404") ||
+                              errorMsg.includes("Not Found") ||
+                              errorMsg.includes("400") ||
+                              errorMsg.includes("Bad Request") ||
+                              errorMsg.includes("Unexpected HTTP code")
+                            ) {
+                            }
+                            handleImageError(ath.fincode);
+                          }}
+                        />
+                      ) : (
+                        <Image
+                          source={require("@/assets/images/default-avatar.png")}
+                          style={styles.portrait}
+                        />
+                      );
+                    })()}
                   </View>
-                  <Text style={styles.tableCell}>{ath.name}</Text>
-                  <Text style={styles.tableCell}>{ath.presenze}</Text>
-                  <Text style={styles.tableCell}>{ath.giustificate}</Text>
-                  <Text style={styles.tableCell}>{ath.total_sessions}</Text>
-                  <Text style={styles.tableCell}>
+
+                  <View style={styles.dataCell}>
+                    <Text style={styles.athleteName}>{ath.name}</Text>
+                    <View style={styles.statsRow}>
+                      <Text style={styles.statItem}>P: {ath.presenze}</Text>
+                      <Text style={styles.statItem}>J: {ath.giustificate}</Text>
+                      <Text style={styles.statItem}>
+                        T: {ath.total_sessions}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.percentCell}>
                     {ath.percent != null ? ath.percent.toFixed(1) + "%" : ""}
                   </Text>
                 </View>
@@ -416,5 +472,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     fontStyle: "italic",
+  },
+  // New styles for the modified layout
+  dataCell: {
+    flex: 3,
+    paddingHorizontal: 20, // Increased padding for more space from picture
+    justifyContent: "center",
+  },
+  athleteName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 5,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statItem: {
+    fontSize: 12,
+    color: "#666",
+    flex: 1,
+    textAlign: "center",
+  },
+  percentCell: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
   },
 });

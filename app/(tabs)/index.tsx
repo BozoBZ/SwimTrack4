@@ -1,18 +1,21 @@
-import { View, StyleSheet } from 'react-native';
-import Button from '@/components/Button'; 
-import ImageViewer from '@/components/ImageViewer';
+import { View, StyleSheet, Image } from "react-native";
+import Button from "@/components/Button";
 
-const PlaceholderImage = require("@/assets/images/react-logo.png");
+const PlaceholderImage = require("@/assets/images/LogoSportProNew_Transparent.png");
 
 export default function Index() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <ImageViewer imgSource={PlaceholderImage} />
+        <Image
+          source={PlaceholderImage}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </View>
       <View style={styles.footerContainer}>
         <Button theme="primary" label="Attendance Calendar" />
-        <Button label="Use this photo" />
+        <Button theme="primary" label="Trainings" />
       </View>
     </View>
   );
@@ -21,15 +24,23 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
-    alignItems: 'center',
+    backgroundColor: "#ffffff", // White background to match the logo
+    alignItems: "center",
   },
   imageContainer: {
     flex: 1,
     paddingTop: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent", // Ensure transparent background
+  },
+  logo: {
+    width: 280,
+    height: 280,
+    backgroundColor: "transparent",
   },
   footerContainer: {
     flex: 1 / 3,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });
