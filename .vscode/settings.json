@@ -3,5 +3,17 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
+  },
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.validate.enable": true,
+  "search.exclude": {
+    "**/node_modules": true
+  },
+  "typescript.suggest.autoImports": true,
+  "files.exclude": {
+    "**/node_modules/**": false
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true
   }
 }
