@@ -186,10 +186,15 @@ const AthletesScreen = () => {
       // Safely process the data
       const processed = data.map((item: any, index: number) => {
         // Ensure the item has required properties
+        const rawGroups = item.groups || item.team || "";
+        const normalizedGroups = rawGroups.trim().toUpperCase();
+
         const processedItem = {
           ...item,
           name: item.name || "Unnamed Athlete",
           fincode: item.fincode || index,
+          // Map team field to groups for consistency and normalize the value
+          groups: normalizedGroups,
         };
 
         return processedItem;
@@ -234,6 +239,13 @@ const AthletesScreen = () => {
   };
 
   const openModal = (athlete: Athlete) => {
+    console.log("=== Opening modal for athlete ===");
+    console.log("Full athlete object:", JSON.stringify(athlete, null, 2));
+    console.log("Athlete groups field:", athlete.groups);
+    console.log("Athlete groups type:", typeof athlete.groups);
+    console.log("Athlete groups length:", athlete.groups?.length);
+    console.log("=====================================");
+
     setSelectedAthlete(athlete);
     setModalVisible(true);
   };
@@ -510,34 +522,75 @@ const AthletesScreen = () => {
         <View style={styles.modalContent}>
           {selectedAthlete && (
             <>
-              <TextInput
-                style={styles.input}
-                value={selectedAthlete.name}
-                onChangeText={(text) =>
-                  setSelectedAthlete({ ...selectedAthlete, name: text })
-                }
-                placeholder="Name"
-              />
-              <TextInput
-                style={styles.input}
-                value={
-                  selectedAthlete.birthdate
-                    ? format(new Date(selectedAthlete.birthdate), "yyyy-MM-dd")
-                    : ""
-                }
-                onChangeText={(text) =>
-                  setSelectedAthlete({ ...selectedAthlete, birthdate: text })
-                }
-                placeholder="Birthdate (YYYY-MM-DD)"
-              />
-              <TextInput
-                style={styles.input}
-                value={selectedAthlete.gender}
-                onChangeText={(text) =>
-                  setSelectedAthlete({ ...selectedAthlete, gender: text })
-                }
-                placeholder="Gender"
-              />
+              {/* Portrait and Name Header */}
+              <View style={styles.modalHeader}>
+                {(() => {
+                  const athleteKey =
+                    selectedAthlete.fincode?.toString() || "unknown";
+                  const hasImageError = imageErrors.has(athleteKey);
+                  const photoUrl = selectedAthlete.fincode
+                    ? getPortraitUrl(selectedAthlete.fincode)
+                    : null;
+                  const shouldLoadImage = photoUrl && !hasImageError;
+
+                  return shouldLoadImage ? (
+                    <Image
+                      source={{ uri: photoUrl }}
+                      style={styles.modalPortrait}
+                      onError={(error) => {
+                        const errorMsg = error.nativeEvent?.error || "";
+                        if (
+                          errorMsg.includes("404") ||
+                          errorMsg.includes("Not Found") ||
+                          errorMsg.includes("400") ||
+                          errorMsg.includes("Bad Request") ||
+                          errorMsg.includes("Unexpected HTTP code")
+                        ) {
+                          console.log(
+                            `Portrait not found in Supabase storage for athlete ${selectedAthlete.name} (fincode: ${selectedAthlete.fincode}). Using default avatar.`
+                          );
+                        }
+                        handleImageError(selectedAthlete.fincode || 0);
+                      }}
+                    />
+                  ) : (
+                    <Image
+                      source={require("@/assets/images/default-avatar.png")}
+                      style={styles.modalPortrait}
+                    />
+                  );
+                })()}
+                <Text style={styles.modalTitle}>{selectedAthlete.name}</Text>
+              </View>
+
+              {/* Form Fields */}
+
+              {/* Birthdate and Gender Row */}
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputHalf}
+                  value={
+                    selectedAthlete.birthdate
+                      ? format(
+                          new Date(selectedAthlete.birthdate),
+                          "yyyy-MM-dd"
+                        )
+                      : ""
+                  }
+                  onChangeText={(text) =>
+                    setSelectedAthlete({ ...selectedAthlete, birthdate: text })
+                  }
+                  placeholder="Birthdate (YYYY-MM-DD)"
+                />
+                <TextInput
+                  style={styles.inputHalf}
+                  value={selectedAthlete.gender}
+                  onChangeText={(text) =>
+                    setSelectedAthlete({ ...selectedAthlete, gender: text })
+                  }
+                  placeholder="Gender"
+                />
+              </View>
               <TextInput
                 style={styles.input}
                 value={selectedAthlete.email}
@@ -554,50 +607,47 @@ const AthletesScreen = () => {
                 }
                 placeholder="Phone"
               />
-              <View style={styles.booleanRow}>
-                <Text>Active:</Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    setSelectedAthlete({
-                      ...selectedAthlete,
-                      active: !selectedAthlete.active,
-                    })
+
+              {/* Group and Active Row */}
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.inputHalf}
+                  value={selectedAthlete.groups}
+                  onChangeText={(text) =>
+                    setSelectedAthlete({ ...selectedAthlete, groups: text })
                   }
-                  style={{
-                    marginLeft: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderWidth: 1,
-                      borderColor: "#ccc",
-                      backgroundColor: selectedAthlete.active
-                        ? "#4CAF50"
-                        : "transparent",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
+                  placeholder="Group"
+                />
+                <View style={styles.activeContainer}>
+                  <Text style={styles.activeLabel}>Active:</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setSelectedAthlete({
+                        ...selectedAthlete,
+                        active: !selectedAthlete.active,
+                      })
+                    }
+                    style={styles.activeCheckbox}
                   >
-                    {selectedAthlete.active && (
-                      <Text style={{ color: "white", fontWeight: "bold" }}>
-                        ✔
-                      </Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          backgroundColor: selectedAthlete.active
+                            ? "#4CAF50"
+                            : "transparent",
+                        },
+                      ]}
+                    >
+                      {selectedAthlete.active && (
+                        <Text style={styles.checkmark}>✔</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <TextInput
-                style={styles.input}
-                value={selectedAthlete.groups}
-                onChangeText={(text) =>
-                  setSelectedAthlete({ ...selectedAthlete, groups: text })
-                }
-                placeholder="Team"
-              />
+
+              {/* Removed duplicate Active row here */}
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   onPress={saveAthlete}
@@ -675,9 +725,37 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     padding: 16,
+    paddingTop: 60,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    width: "100%",
+  },
+  modalPortrait: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#333",
   },
   input: {
     width: "100%",
@@ -686,6 +764,59 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     borderRadius: 8,
     marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 16,
+  },
+  inputHalf: {
+    width: "48%",
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+  },
+  pickerContainer: {
+    width: "65%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+  },
+  pickerHalf: {
+    height: 40,
+  },
+  activeContainer: {
+    width: "30%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeLabel: {
+    fontSize: 16,
+    marginRight: 8,
+    color: "#333",
+  },
+  activeCheckbox: {
+    marginLeft: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 3,
+  },
+  checkmark: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
   },
   modalButtons: {
     flexDirection: "row",

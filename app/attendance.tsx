@@ -220,9 +220,20 @@ const AttendanceScreen = () => {
     );
   };
 
+  // Calculate status counts
+  const getStatusCounts = () => {
+    const counts = { P: 0, J: 0, A: 0, N: 0 };
+    filteredAthletes.forEach((athlete) => {
+      const status = athlete.status || "N";
+      counts[status as keyof typeof counts]++;
+    });
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Session ID: {sessionId}</Text>
       <View
         style={{
           flexDirection: "row",
@@ -230,9 +241,26 @@ const AttendanceScreen = () => {
           marginBottom: 10,
         }}
       >
-        <Text style={styles.subtitle}>Date: {sessionDate}</Text>
-        <Text style={styles.subtitle}>Group: {selectedGroup}</Text>
+        <Text style={styles.title}>Date: {sessionDate}</Text>
+        <Text style={styles.title}>Group: {selectedGroup}</Text>
       </View>
+
+      {/* Live attendance counter */}
+      <View style={styles.counterContainer}>
+        <View style={[styles.counterItem, { backgroundColor: "#b6eab6" }]}>
+          <Text style={styles.counterText}>P:{statusCounts.P}</Text>
+        </View>
+        <View style={[styles.counterItem, { backgroundColor: "#b3eaff" }]}>
+          <Text style={styles.counterText}>J:{statusCounts.J}</Text>
+        </View>
+        <View style={[styles.counterItem, { backgroundColor: "#f7b6b6" }]}>
+          <Text style={styles.counterText}>A:{statusCounts.A}</Text>
+        </View>
+        <View style={[styles.counterItem, { backgroundColor: "#e0e0e0" }]}>
+          <Text style={styles.counterText}>N:{statusCounts.N}</Text>
+        </View>
+      </View>
+
       <FlatList
         data={filteredAthletes}
         keyExtractor={(item) => item.fincode.toString()}
@@ -389,6 +417,31 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 20,
     marginBottom: 32, // Add extra bottom margin to avoid overlap with navigation bar
+  },
+  counterContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  counterItem: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    minWidth: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  counterText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
   },
 });
 
