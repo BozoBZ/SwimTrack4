@@ -1,7 +1,23 @@
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image, View } from "react-native";
+
+const PlaceholderImage = require("@/assets/images/LogoSportProNew_Transparent.png");
 
 export default function TabLayout() {
+  const HeaderLogo = () => (
+    <View style={{ marginLeft: 15 }}>
+      <Image
+        source={PlaceholderImage}
+        style={{
+          width: 60,
+          height: 60,
+          resizeMode: 'contain',
+        }}
+      />
+    </View>
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -12,6 +28,7 @@ export default function TabLayout() {
         },
         headerShadowVisible: true, // Add subtle shadow for definition
         headerTintColor: "#333333", // Dark text in header
+        headerLeft: () => <HeaderLogo />,
         tabBarStyle: {
           backgroundColor: "#ffffff", // White tab bar background
           borderTopWidth: 1,
@@ -19,6 +36,7 @@ export default function TabLayout() {
         },
       }}
     >
+      
       <Tabs.Screen
         name="index"
         options={{
@@ -61,7 +79,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: "Statistics",
+          title: "Attendance",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "stats-chart" : "stats-chart-outline"}

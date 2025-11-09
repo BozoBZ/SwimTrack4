@@ -2,19 +2,37 @@ import {
   Text,
   FlatList,
   Modal,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   View,
 } from "react-native";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import React, { useState } from "react";
 import { Picker } from "@react-native-picker/picker"; // Import Picker for dropdown
-import styled from "styled-components/native";
 import { supabase } from "../../utils/supabaseClient";
-import { filterAthletesByTeam, fetchAthletes } from "../../utils/athletesUtils";
+import { filterAthletesByTeam } from "../../utils/athletesUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
+import {
+  Container,
+  Heading,
+  ModalContainer,
+  ModalContent,
+  ModalTitle,
+  Input,
+  EditButton,
+  DeleteButton,
+  AttendanceButton,
+  WeekNavigation,
+  NavButton,
+  WeekTitle,
+  WeekDaysContainer,
+  DayContainer,
+  DayLabel,
+  DayButton,
+  DayText,
+  FilterLabel,
+  colors,
+} from "../../styles/globalStyles";
 
 type TrainingDay = {
   session_id: number;
@@ -35,19 +53,9 @@ type DateObject = {
   dateString: string;
 };
 
-const Container = styled.View`
-  flex: 1;
-  padding: 20px;
-  background-color: #f0f0f0;
-`;
+import styled from "styled-components/native";
 
-const Heading = styled.Text`
-  font-size: 18px;
-  font-weight: bold;
-  margin-vertical: 10px;
-  text-align: center;
-`;
-
+// Additional styled components specific to this screen
 const SessionItem = styled.View`
   padding: 10px;
   background-color: #ffffff;
@@ -59,174 +67,17 @@ const SessionItem = styled.View`
   shadow-radius: 3px;
 `;
 
-const NoSessions = styled.View`
-  align-items: center;
-  margin-top: 20px;
-`;
-
-const ModalContainer = styled.View`
-  flex: 1;
-  justify-content: center;
-  align-items: center;
-  background-color: rgba(0, 0, 0, 0.5);
-`;
-
-const ModalContent = styled.View`
-  width: 300px;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 10px;
-  shadow-color: #000;
-  shadow-offset: 0px 2px;
-  shadow-opacity: 0.2;
-  shadow-radius: 4px;
-`;
-
-const ModalTitle = styled.Text`
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 10px;
-`;
-
-const Input = styled.TextInput`
-  border-width: 1px;
-  border-color: #ccc;
-  border-radius: 5px;
-  padding: 10px;
-  margin-bottom: 10px;
-`;
-
-const SaveButton = styled.TouchableOpacity`
-  background-color: #4caf50;
-  padding-vertical: 5px;
-  padding-horizontal: 10px;
-  border-radius: 5px;
-  align-items: center;
-`;
-
-const CancelButton = styled.TouchableOpacity`
-  background-color: #ff4336;
-  padding-vertical: 5px;
-  padding-horizontal: 10px;
-  border-radius: 5px;
-  align-items: center;
-`;
-
 const AddNewButton = styled.TouchableOpacity`
-  background-color: #fab905;
+  background-color: ${colors.warning};
   padding-vertical: 5px;
   padding-horizontal: 10px;
   border-radius: 5px;
-  align-items: center;
-`;
-
-const AttendanceButton = styled.TouchableOpacity`
-  background-color: #ffa500;
-  padding: 5px;
-  border-radius: 5px;
-  justify-content: center;
   align-items: center;
 `;
 
 const AddNewButtonText = styled.Text`
   color: #fff;
   font-weight: bold;
-`;
-
-const EditButton = styled.TouchableOpacity`
-  background-color: #0e7bff;
-  padding: 5px;
-  border-radius: 5px;
-  margin-top: 5px;
-  justify-content: center;
-  align-items: center;
-`;
-
-const DeleteButton = styled.TouchableOpacity`
-  background-color: #ff4336;
-  padding: 5px;
-  border-radius: 5px;
-  margin-top: 5px;
-  justify-content: center;
-  align-items: center;
-`;
-
-const ButtonContainer = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-`;
-
-const WeeklyCalendarContainer = styled.View`
-  background-color: #ffffff;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  padding: 15px;
-  shadow-color: #000;
-  shadow-offset: 0px 2px;
-  shadow-opacity: 0.1;
-  shadow-radius: 3px;
-  elevation: 3;
-`;
-
-const WeekNavigation = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-`;
-
-const NavButton = styled.TouchableOpacity`
-  padding: 10px;
-  border-radius: 20px;
-  background-color: #f8f9fa;
-`;
-
-const WeekTitle = styled.Text`
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-`;
-
-const WeekDaysContainer = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-`;
-
-const DayContainer = styled.View`
-  align-items: center;
-  flex: 1;
-`;
-
-const DayLabel = styled.Text`
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-  font-weight: 500;
-`;
-
-const DayButton = styled.TouchableOpacity<{
-  isSelected?: boolean;
-  isToday?: boolean;
-}>`
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-  justify-content: center;
-  align-items: center;
-  background-color: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
-    props.isSelected ? "#007AFF" : props.isToday ? "#E3F2FD" : "transparent"};
-  border: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
-    props.isToday && !props.isSelected ? "2px solid #007AFF" : "none"};
-`;
-
-const DayText = styled.Text<{ isSelected?: boolean; isToday?: boolean }>`
-  font-size: 16px;
-  font-weight: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
-    props.isToday || props.isSelected ? "bold" : "normal"};
-  color: ${(props: { isSelected?: boolean; isToday?: boolean }) =>
-    props.isSelected ? "#FFFFFF" : props.isToday ? "#007AFF" : "#333"};
 `;
 
 const GroupFilterContainer = styled.View`
@@ -241,11 +92,44 @@ const GroupFilterContainer = styled.View`
   elevation: 3;
 `;
 
-const FilterLabel = styled.Text`
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 10px;
+const WeeklyCalendarContainer = styled.View`
+  background-color: #ffffff;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 15px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const NoSessions = styled.View`
+  align-items: center;
+  margin-top: 20px;
+`;
+
+const ButtonContainer = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+`;
+
+const SaveButton = styled.TouchableOpacity`
+  background-color: ${colors.success};
+  padding-vertical: 5px;
+  padding-horizontal: 10px;
+  border-radius: 5px;
+  align-items: center;
+`;
+
+const CancelButton = styled.TouchableOpacity`
+  background-color: ${colors.danger};
+  padding-vertical: 5px;
+  padding-horizontal: 10px;
+  border-radius: 5px;
+  align-items: center;
 `;
 
 export default function TrainingsScreen() {
@@ -502,16 +386,18 @@ export default function TrainingsScreen() {
               style={{
                 backgroundColor: "#f8f9fa",
                 borderRadius: 8,
+                color: "#333333",
               }}
               itemStyle={{
                 height: 44,
+                color: "#333333",
               }}
             >
-              <Picker.Item label="All Groups" value="ALL" />
-              <Picker.Item label="ASS" value="ASS" />
-              <Picker.Item label="EA" value="EA" />
-              <Picker.Item label="EB" value="EB" />
-              <Picker.Item label="PROP" value="PROP" />
+              <Picker.Item label="All Groups" value="ALL" style={{ color: "#333333" }} />
+              <Picker.Item label="ASS" value="ASS" style={{ color: "#333333" }} />
+              <Picker.Item label="EA" value="EA" style={{ color: "#333333" }} />
+              <Picker.Item label="EB" value="EB" style={{ color: "#333333" }} />
+              <Picker.Item label="PROP" value="PROP" style={{ color: "#333333" }} />
             </Picker>
           </View>
         </View>
@@ -610,9 +496,18 @@ export default function TrainingsScreen() {
                 onValueChange={(itemValue) =>
                   handleInputChange("type", itemValue)
                 }
+                style={{
+                  color: "#333333",
+                  backgroundColor: "#ffffff",
+                  height: 50,
+                }}
+                itemStyle={{
+                  color: "#333333",
+                  fontSize: 16,
+                }}
               >
-                <Picker.Item label="Swim" value="Swim" />
-                <Picker.Item label="Gym" value="Gym" />
+                <Picker.Item label="Swim" value="Swim" style={{ color: "#333333" }} />
+                <Picker.Item label="Gym" value="Gym" style={{ color: "#333333" }} />
               </Picker>
               <Input
                 placeholder="Description"

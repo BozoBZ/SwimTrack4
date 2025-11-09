@@ -1,11 +1,8 @@
 import {
-  StyleSheet,
   View,
   Text,
-  TextInput,
-  Button,
-  FlatList,
   Image,
+  FlatList,
   Modal,
   TouchableOpacity,
   ActivityIndicator,
@@ -15,6 +12,37 @@ import { format } from "date-fns";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../utils/supabaseClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import {
+  Container,
+  Title,
+  DropdownRow,
+  DropdownContainer,
+  Label,
+  AthleteRow,
+  AthleteDetailsRow,
+  Portrait,
+  Input,
+  InputRow,
+  InputHalf,
+  InputThird,
+  InputWide,
+  InputNarrow,
+  InputMedium,
+  ModalContent,
+  ModalHeader,
+  ModalPortrait,
+  ModalTitle,
+  ModalButtons,
+  NoSelectionText,
+  ActiveContainer,
+  ActiveLabel,
+  ActiveCheckbox,
+  Checkbox,
+  Checkmark,
+  PickerContainer,
+  PickerHalf,
+  colors,
+} from "../../styles/globalStyles";
 
 interface Athlete {
   fincode?: number;
@@ -324,9 +352,9 @@ const AthletesScreen = () => {
       // Ensure item exists
       if (!item) {
         return (
-          <View style={styles.athleteRow}>
+          <AthleteRow>
             <Text>Invalid athlete data</Text>
-          </View>
+          </AthleteRow>
         );
       }
 
@@ -340,15 +368,14 @@ const AthletesScreen = () => {
       const shouldLoadImage = photoUrl && !hasImageError;
 
       return (
-        <View style={styles.athleteRow}>
+        <AthleteRow>
           {shouldLoadImage ? (
-            <Image
+            <Portrait
               source={{ uri: photoUrl }}
-              style={styles.portrait}
               onLoad={() => {
                 // Image loaded successfully
               }}
-              onError={(error) => {
+              onError={(error: any) => {
                 const errorMsg = error.nativeEvent?.error || "";
                 // Handle various error codes that indicate file doesn't exist
                 if (
@@ -374,14 +401,11 @@ const AthletesScreen = () => {
               }}
             />
           ) : (
-            <Image
-              source={require("@/assets/images/default-avatar.png")}
-              style={styles.portrait}
-            />
+            <Portrait source={require("@/assets/images/default-avatar.png")} />
           )}
           <Text>{item.name || "No Name"}</Text>
-          <View
-            style={[styles.row, { flexDirection: "row", alignItems: "center" }]}
+          <AthleteDetailsRow
+            style={{ flexDirection: "row", alignItems: "center" }}
           >
             <Ionicons
               name="list-circle-outline"
@@ -395,67 +419,89 @@ const AthletesScreen = () => {
                 }
               }}
             />
-          </View>
-        </View>
+          </AthleteDetailsRow>
+        </AthleteRow>
       );
     } catch (renderError) {
       console.error("Error rendering athlete:", renderError);
       return (
-        <View style={styles.athleteRow}>
+        <AthleteRow>
           <Text>Error displaying athlete</Text>
-        </View>
+        </AthleteRow>
       );
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Athletes</Text>
+    <Container>
+      <Title>Athletes</Title>
 
       {/* Dropdowns Row */}
-      <View style={styles.dropdownRow}>
-        <View style={styles.dropdownContainer}>
-          <Text style={styles.label}>Season:</Text>
+      <DropdownRow>
+        <DropdownContainer>
+          <Label>Season:</Label>
           <Picker
             selectedValue={selectedSeason}
             onValueChange={(itemValue) => setSelectedSeason(itemValue)}
-            style={styles.picker}
             enabled={!seasonsLoading}
+            style={{
+              color: colors.textPrimary,
+              backgroundColor: colors.white,
+              height: 50,
+            }}
+            itemStyle={{
+              color: colors.textPrimary,
+              fontSize: 16,
+            }}
           >
-            <Picker.Item label="Select a season..." value="" />
+            <Picker.Item 
+              label="Select a season..." 
+              value="" 
+              style={{ color: colors.textSecondary }}
+            />
             {seasons.map((season) => (
               <Picker.Item
                 key={season.seasonid}
                 label={season.description}
                 value={season.description}
+                style={{ color: colors.textPrimary }}
               />
             ))}
           </Picker>
-        </View>
+        </DropdownContainer>
 
-        <View style={styles.dropdownContainer}>
-          <Text style={styles.label}>Group:</Text>
+        <DropdownContainer>
+          <Label>Group:</Label>
           <Picker
             selectedValue={selectedGroup}
             onValueChange={(itemValue) => setSelectedGroup(itemValue)}
-            style={styles.picker}
             enabled={!!selectedSeason && !loading}
+            style={{
+              color: colors.textPrimary,
+              backgroundColor: colors.white,
+              height: 50,
+            }}
+            itemStyle={{
+              color: colors.textPrimary,
+              fontSize: 16,
+            }}
           >
             {groupOptions.map((option) => (
               <Picker.Item
                 key={option.value}
                 label={option.label}
                 value={option.value}
+                style={{ color: colors.textPrimary }}
               />
             ))}
           </Picker>
-        </View>
-      </View>
+        </DropdownContainer>
+      </DropdownRow>
 
       {/* Loading and Error States */}
       {seasonsLoading && <Text>Loading seasons...</Text>}
       {loading && selectedSeason && <Text>Loading athletes...</Text>}
-      {error && <Text style={{ color: "red" }}>{error}</Text>}
+      {error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
       {/* Athletes List */}
       {!loading &&
@@ -495,14 +541,14 @@ const AthletesScreen = () => {
 
       {/* Empty States */}
       {!loading && !error && selectedSeason === "" && (
-        <Text style={styles.noSelectionText}>
+        <NoSelectionText>
           Please select a season from the dropdown to view athletes.
-        </Text>
+        </NoSelectionText>
       )}
       {!loading && !error && selectedSeason && selectedGroup === "" && (
-        <Text style={styles.noSelectionText}>
+        <NoSelectionText>
           Please select a group from the dropdown to view athletes.
-        </Text>
+        </NoSelectionText>
       )}
       {!loading &&
         !error &&
@@ -510,20 +556,22 @@ const AthletesScreen = () => {
         selectedGroup &&
         selectedGroup !== "" &&
         filteredAthletes.length === 0 && (
-          <Text style={styles.noSelectionText}>
+          <NoSelectionText>
             No athletes found for the selected season and group combination.
-          </Text>
+          </NoSelectionText>
         )}
       <Modal
         visible={modalVisible}
         animationType="slide"
         onRequestClose={closeModal}
+        transparent={true}
       >
-        <View style={styles.modalContent}>
-          {selectedAthlete && (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <ModalContent>
+            {selectedAthlete && (
             <>
               {/* Portrait and Name Header */}
-              <View style={styles.modalHeader}>
+              <ModalHeader>
                 {(() => {
                   const athleteKey =
                     selectedAthlete.fincode?.toString() || "unknown";
@@ -534,10 +582,9 @@ const AthletesScreen = () => {
                   const shouldLoadImage = photoUrl && !hasImageError;
 
                   return shouldLoadImage ? (
-                    <Image
+                    <ModalPortrait
                       source={{ uri: photoUrl }}
-                      style={styles.modalPortrait}
-                      onError={(error) => {
+                      onError={(error: any) => {
                         const errorMsg = error.nativeEvent?.error || "";
                         if (
                           errorMsg.includes("404") ||
@@ -554,21 +601,19 @@ const AthletesScreen = () => {
                       }}
                     />
                   ) : (
-                    <Image
+                    <ModalPortrait
                       source={require("@/assets/images/default-avatar.png")}
-                      style={styles.modalPortrait}
                     />
                   );
                 })()}
-                <Text style={styles.modalTitle}>{selectedAthlete.name}</Text>
-              </View>
+                <ModalTitle>{selectedAthlete.name}</ModalTitle>
+              </ModalHeader>
 
               {/* Form Fields */}
 
               {/* Birthdate and Gender Row */}
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.inputHalf}
+              <InputRow>
+                <InputWide
                   value={
                     selectedAthlete.birthdate
                       ? format(
@@ -577,267 +622,109 @@ const AthletesScreen = () => {
                         )
                       : ""
                   }
-                  onChangeText={(text) =>
+                  onChangeText={(text: string) =>
                     setSelectedAthlete({ ...selectedAthlete, birthdate: text })
                   }
                   placeholder="Birthdate (YYYY-MM-DD)"
                 />
-                <TextInput
-                  style={styles.inputHalf}
+                <InputNarrow
                   value={selectedAthlete.gender}
-                  onChangeText={(text) =>
+                  onChangeText={(text: string) =>
                     setSelectedAthlete({ ...selectedAthlete, gender: text })
                   }
                   placeholder="Gender"
                 />
-              </View>
-              <TextInput
-                style={styles.input}
+                <InputMedium
+                  value={selectedAthlete.groups}
+                  onChangeText={(text: string) =>
+                    setSelectedAthlete({ ...selectedAthlete, groups: text })
+                  }
+                  placeholder="Group"
+                />
+              </InputRow>
+              <Input
                 value={selectedAthlete.email}
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setSelectedAthlete({ ...selectedAthlete, email: text })
                 }
                 placeholder="Email"
               />
-              <TextInput
-                style={styles.input}
+              <Input
                 value={selectedAthlete.phone}
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setSelectedAthlete({ ...selectedAthlete, phone: text })
                 }
                 placeholder="Phone"
               />
 
-              {/* Group and Active Row */}
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.inputHalf}
-                  value={selectedAthlete.groups}
-                  onChangeText={(text) =>
-                    setSelectedAthlete({ ...selectedAthlete, groups: text })
-                  }
-                  placeholder="Group"
-                />
-                <View style={styles.activeContainer}>
-                  <Text style={styles.activeLabel}>Active:</Text>
-                  <TouchableOpacity
+              {/* Active Row */}
+              <View style={{ width: '100%', paddingLeft: 0, marginBottom: 15 }}>
+                <ActiveContainer>
+                  <ActiveLabel>Active:</ActiveLabel>
+                  <ActiveCheckbox
                     onPress={() =>
                       setSelectedAthlete({
                         ...selectedAthlete,
                         active: !selectedAthlete.active,
                       })
                     }
-                    style={styles.activeCheckbox}
                   >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        {
-                          backgroundColor: selectedAthlete.active
-                            ? "#4CAF50"
-                            : "transparent",
-                        },
-                      ]}
+                    <Checkbox
+                      style={{
+                        backgroundColor: selectedAthlete.active
+                          ? colors.success
+                          : "transparent",
+                        borderColor: selectedAthlete.active
+                          ? colors.success
+                          : colors.primary,
+                      }}
                     >
-                      {selectedAthlete.active && (
-                        <Text style={styles.checkmark}>✔</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                      {selectedAthlete.active && <Checkmark>✔</Checkmark>}
+                    </Checkbox>
+                  </ActiveCheckbox>
+                </ActiveContainer>
               </View>
 
               {/* Removed duplicate Active row here */}
-              <View style={styles.modalButtons}>
+              <ModalButtons>
                 <TouchableOpacity
                   onPress={saveAthlete}
                   style={{ marginHorizontal: 8 }}
                 >
-                  <Ionicons name="save-outline" color="#333" size={24} />
+                  <Ionicons
+                    name="save-outline"
+                    color={colors.textPrimary}
+                    size={24}
+                  />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={closeModal}
                   style={{ marginHorizontal: 8 }}
                 >
-                  <Ionicons name="close-outline" color="#FF5722" size={24} />
+                  <Ionicons
+                    name="close-outline"
+                    color={colors.warning}
+                    size={24}
+                  />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={deleteAthlete}
                   style={{ marginHorizontal: 8 }}
                 >
-                  <Ionicons name="trash-outline" color="#F44336" size={24} />
+                  <Ionicons
+                    name="trash-outline"
+                    color={colors.danger}
+                    size={24}
+                  />
                 </TouchableOpacity>
-              </View>
+              </ModalButtons>
             </>
           )}
+          </ModalContent>
         </View>
       </Modal>
-    </View>
+    </Container>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  dropdownRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  dropdownContainer: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  athleteRow: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-  },
-  row: {
-    justifyContent: "space-between",
-  },
-  portrait: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 8,
-  },
-  modalContent: {
-    flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    padding: 16,
-    paddingTop: 60,
-  },
-  modalHeader: {
-    alignItems: "center",
-    marginBottom: 30,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    width: "100%",
-  },
-  modalPortrait: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#333",
-  },
-  input: {
-    width: "100%",
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  inputRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 16,
-  },
-  inputHalf: {
-    width: "48%",
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-  },
-  pickerContainer: {
-    width: "65%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  pickerHalf: {
-    height: 40,
-  },
-  activeContainer: {
-    width: "30%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activeLabel: {
-    fontSize: 16,
-    marginRight: 8,
-    color: "#333",
-  },
-  activeCheckbox: {
-    marginLeft: 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 3,
-  },
-  checkmark: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  booleanRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  picker: {
-    marginBottom: 16,
-  },
-  noSelectionText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 20,
-    fontStyle: "italic",
-  },
-});
 
 export default AthletesScreen;

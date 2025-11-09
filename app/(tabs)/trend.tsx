@@ -2,19 +2,25 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   ActivityIndicator,
   Dimensions,
   TouchableOpacity,
   Alert,
   Modal,
+  FlatList,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { supabase } from "../../utils/supabaseClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, { Circle, Text as SvgText, Line, G } from "react-native-svg";
 import * as ScreenOrientation from "expo-screen-orientation";
+import {
+  Container,
+  colors,
+  spacing,
+  ButtonText,
+} from "../../styles/globalStyles";
+import styled from "styled-components/native";
 
 interface Athlete {
   fincode: number;
@@ -25,6 +31,238 @@ interface AttendanceData {
   month: string;
   attendance_percentage: number;
 }
+
+// Compact Filter Components
+const CompactFilterContainer = styled.View`
+  background-color: ${colors.white};
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 4;
+`;
+
+const CompactFilterGrid = styled.View`
+  flex-direction: column;
+  margin-bottom: 16px;
+`;
+
+const FilterRow = styled.View`
+  flex-direction: row;
+  margin-bottom: 12px;
+`;
+
+const CompactFilterItem = styled.View`
+  flex: 1;
+  min-width: 120px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+`;
+
+const CompactLabel = styled.Text`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${colors.textSecondary};
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const CustomDropdown = styled.TouchableOpacity`
+  background-color: ${colors.lightGray};
+  border-radius: 8px;
+  padding: 10px 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  border: 1px solid ${colors.border};
+`;
+
+const DropdownText = styled.Text`
+  font-size: 14px;
+  color: ${colors.textPrimary};
+  flex: 1;
+`;
+
+const DropdownModal = styled(Modal)``;
+
+const DropdownOverlay = styled.View`
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+`;
+
+const DropdownMenu = styled.View`
+  background-color: ${colors.white};
+  border-radius: 12px;
+  min-width: 200px;
+  max-height: 400px;
+  shadow-color: #000;
+  shadow-offset: 0px 4px;
+  shadow-opacity: 0.2;
+  shadow-radius: 8px;
+  elevation: 8;
+`;
+
+const DropdownHeader = styled.View`
+  padding: 16px;
+  border-bottom: 1px solid ${colors.lightGray};
+`;
+
+const DropdownTitle = styled.Text`
+  font-size: 16px;
+  font-weight: bold;
+  color: ${colors.textPrimary};
+  text-align: center;
+`;
+
+const DropdownItem = styled.TouchableOpacity`
+  padding: 12px 16px;
+  border-bottom: 1px solid ${colors.lightGray};
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const DropdownItemText = styled.Text`
+  font-size: 14px;
+  color: ${colors.textPrimary};
+`;
+
+const ButtonRow = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 10px;
+`;
+
+const ChartButton = styled.TouchableOpacity`
+  background-color: ${colors.primary};
+  flex-direction: row;
+  align-items: center;
+  padding-vertical: 12px;
+  padding-horizontal: 20px;
+  border-radius: 8px;
+  flex: 1;
+  justify-content: center;
+`;
+
+const ErrorText = styled.Text`
+  color: ${colors.danger};
+  font-size: 16px;
+  text-align: center;
+  margin-vertical: 10px;
+  background-color: #ffebee;
+  padding: 10px;
+  border-radius: 8px;
+`;
+
+const GroupTitle = styled.Text`
+  font-size: 20px;
+  font-weight: bold;
+  color: ${colors.textPrimary};
+  text-align: center;
+  margin-bottom: 15px;
+`;
+
+const NoDataContainer = styled.View`
+  padding: 40px;
+  align-items: center;
+  background-color: ${colors.white};
+  border-radius: 10px;
+  margin-vertical: 20px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const NoDataText = styled.Text`
+  color: ${colors.textSecondary};
+  font-size: 16px;
+  text-align: center;
+`;
+
+const ModalContainer = styled.View`
+  flex: 1;
+  background-color: ${colors.lightGray};
+`;
+
+const ModalHeader = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background-color: ${colors.white};
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const ModalTitle = styled.Text`
+  font-size: 14px;
+  font-weight: bold;
+  color: ${colors.textPrimary};
+  flex: 1;
+`;
+
+const CloseButton = styled.TouchableOpacity`
+  padding: 4px;
+  background-color: ${colors.lightGray};
+  border-radius: 15px;
+`;
+
+const FullScreenChartScrollView = styled.ScrollView`
+  flex: 1;
+  background-color: ${colors.white};
+  margin: 5px;
+  border-radius: 10px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const FullScreenChartSvg = styled(Svg)`
+  background-color: #f8f8ff;
+  border-radius: 8px;
+`;
+
+const SummaryContainer = styled.View`
+  margin-top: 20px;
+  padding: 15px;
+  background-color: ${colors.white};
+  border-radius: 10px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+`;
+
+const SummaryText = styled.Text`
+  font-size: 14px;
+  color: ${colors.textSecondary};
+  margin-bottom: 8px;
+`;
+
+const NoteText = styled.Text`
+  font-size: 14px;
+  color: ${colors.textSecondary};
+`;
+
+const BoldText = styled.Text`
+  font-weight: bold;
+  color: ${colors.textPrimary};
+`;
 
 function getSeasonMonths(season: string) {
   const result: string[] = [];
@@ -68,7 +306,104 @@ export default function TrendScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showChartModal, setShowChartModal] = useState(false);
 
+  // Dropdown modal states
+  const [seasonModalVisible, setSeasonModalVisible] = useState(false);
+  const [typeModalVisible, setTypeModalVisible] = useState(false);
+  const [groupModalVisible, setGroupModalVisible] = useState(false);
+  const [athleteModalVisible, setAthleteModalVisible] = useState(false);
+
   const months = getSeasonMonths(season);
+
+  // Dropdown data
+  const seasonOptions = [
+    { label: "2023-24", value: "2023-24" },
+    { label: "2024-25", value: "2024-25" },
+    { label: "2025-26", value: "2025-26" },
+  ];
+
+  const typeOptions = [
+    { label: "Swim", value: "Swim" },
+    { label: "Gym", value: "Gym" },
+  ];
+
+  const groupOptions = [
+    { label: "All", value: "all" },
+    { label: "ASS", value: "ASS" },
+    { label: "EA", value: "EA" },
+    { label: "EB", value: "EB" },
+    { label: "PROP", value: "PROP" },
+  ];
+
+  const athleteOptions = [
+    { label: "Athlete...", value: "all" },
+    ...athletes
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((a) => ({
+        label: `${a.name} (${a.fincode})`,
+        value: a.fincode.toString(),
+      })),
+  ];
+
+  // Custom Dropdown Component
+  const CustomDropdownComponent: React.FC<{
+    title: string;
+    selectedValue: string;
+    options: { label: string; value: string }[];
+    onSelect: (value: string) => void;
+    visible: boolean;
+    onClose: () => void;
+  }> = ({ title, selectedValue, options, onSelect, visible, onClose }) => (
+    <DropdownModal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <DropdownOverlay>
+        <TouchableOpacity
+          style={{ flex: 1, width: "100%" }}
+          activeOpacity={1}
+          onPress={onClose}
+        >
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <TouchableOpacity activeOpacity={1}>
+              <DropdownMenu>
+                <DropdownHeader>
+                  <DropdownTitle>{title}</DropdownTitle>
+                </DropdownHeader>
+                <FlatList
+                  data={options}
+                  keyExtractor={(item) => item.value}
+                  renderItem={({ item, index }) => (
+                    <DropdownItem
+                      onPress={() => {
+                        onSelect(item.value);
+                        onClose();
+                      }}
+                      style={{
+                        borderBottomWidth: index === options.length - 1 ? 0 : 1,
+                      }}
+                    >
+                      <DropdownItemText>{item.label}</DropdownItemText>
+                      {selectedValue === item.value && (
+                        <Ionicons
+                          name="checkmark"
+                          size={20}
+                          color={colors.primary}
+                        />
+                      )}
+                    </DropdownItem>
+                  )}
+                />
+              </DropdownMenu>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </DropdownOverlay>
+    </DropdownModal>
+  );
 
   useEffect(() => {
     const fetchAthletes = async () => {
@@ -185,577 +520,378 @@ export default function TrendScreen() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Attendance Trend</Text>
-
-      <View style={styles.filterContainer}>
-        <View style={styles.filterRow}>
-          <Text style={styles.label}>Season:</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={season}
-              onValueChange={setSeason}
-              style={styles.picker}
-            >
-              <Picker.Item label="2023-24" value="2023-24" />
-              <Picker.Item label="2024-25" value="2024-25" />
-              <Picker.Item label="2025-26" value="2025-26" />
-            </Picker>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Text style={styles.label}>Type:</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedType}
-              onValueChange={(itemValue) =>
-                setSelectedType(itemValue as "Swim" | "Gym")
-              }
-              style={styles.picker}
-            >
-              <Picker.Item label="Swim" value="Swim" />
-              <Picker.Item label="Gym" value="Gym" />
-            </Picker>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Text style={styles.label}>Group:</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedGroup}
-              onValueChange={(itemValue) => setSelectedGroup(itemValue as any)}
-              style={styles.picker}
-            >
-              <Picker.Item label="All" value="all" />
-              <Picker.Item label="ASS" value="ASS" />
-              <Picker.Item label="EA" value="EA" />
-              <Picker.Item label="EB" value="EB" />
-              <Picker.Item label="PROP" value="PROP" />
-            </Picker>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Text style={styles.label}>Athlete:</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedFincode}
-              onValueChange={(itemValue) =>
-                setSelectedFincode(
-                  itemValue === "all" ? "all" : Number(itemValue)
-                )
-              }
-              style={styles.picker}
-            >
-              <Picker.Item label="Select an athlete" value="all" />
-              {athletes
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((a) => (
-                  <Picker.Item
-                    key={a.fincode}
-                    label={`${a.name} (${a.fincode})`}
-                    value={a.fincode}
+    <Container style={{ backgroundColor: colors.lightGray }}>
+      <ScrollView style={{ padding: 20 }}>
+        <CompactFilterContainer>
+          <CompactFilterGrid>
+            {/* First Row: Season and Type */}
+            <FilterRow>
+              <CompactFilterItem>
+                <CompactLabel>Season</CompactLabel>
+                <CustomDropdown onPress={() => setSeasonModalVisible(true)}>
+                  <DropdownText>
+                    {seasonOptions.find((opt) => opt.value === season)?.label ||
+                      season}
+                  </DropdownText>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.textSecondary}
                   />
-                ))}
-            </Picker>
-          </View>
-        </View>
+                </CustomDropdown>
+              </CompactFilterItem>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[
-              styles.chartButton,
-              { opacity: selectedFincode === "all" ? 0.5 : 1 },
-            ]}
-            onPress={openChartModal}
-            disabled={loading || selectedFincode === "all"}
-          >
-            <Ionicons name="analytics" size={20} color="#fff" />
-            <Text style={styles.buttonText}>View Chart</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+              <CompactFilterItem style={{ marginRight: 0 }}>
+                <CompactLabel>Type</CompactLabel>
+                <CustomDropdown onPress={() => setTypeModalVisible(true)}>
+                  <DropdownText>
+                    {typeOptions.find((opt) => opt.value === selectedType)
+                      ?.label || selectedType}
+                  </DropdownText>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.textSecondary}
+                  />
+                </CustomDropdown>
+              </CompactFilterItem>
+            </FilterRow>
 
-      {error && <Text style={styles.errorText}>Error: {error}</Text>}
+            {/* Second Row: Group and Athlete */}
+            <FilterRow>
+              <CompactFilterItem>
+                <CompactLabel>Group</CompactLabel>
+                <CustomDropdown onPress={() => setGroupModalVisible(true)}>
+                  <DropdownText>
+                    {groupOptions.find((opt) => opt.value === selectedGroup)
+                      ?.label || selectedGroup}
+                  </DropdownText>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.textSecondary}
+                  />
+                </CustomDropdown>
+              </CompactFilterItem>
 
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#007AFF"
-          style={styles.loadingIndicator}
+              <CompactFilterItem style={{ marginRight: 0 }}>
+                <CompactLabel>Athlete</CompactLabel>
+                <CustomDropdown onPress={() => setAthleteModalVisible(true)}>
+                  <DropdownText>
+                    {selectedFincode === "all"
+                      ? "Athlete..."
+                      : athletes.find((a) => a.fincode === selectedFincode)
+                          ?.name || "Unknown"}
+                  </DropdownText>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.textSecondary}
+                  />
+                </CustomDropdown>
+              </CompactFilterItem>
+            </FilterRow>
+          </CompactFilterGrid>
+
+          <ButtonRow>
+            <ChartButton
+              style={{ opacity: selectedFincode === "all" ? 0.5 : 1 }}
+              onPress={openChartModal}
+              disabled={loading || selectedFincode === "all"}
+            >
+              <Ionicons name="analytics" size={20} color="#fff" />
+              <ButtonText style={{ marginLeft: 8 }}>View Chart</ButtonText>
+            </ChartButton>
+          </ButtonRow>
+        </CompactFilterContainer>
+
+        {/* Custom Dropdown Modals */}
+        <CustomDropdownComponent
+          title="Select Season"
+          selectedValue={season}
+          options={seasonOptions}
+          onSelect={setSeason}
+          visible={seasonModalVisible}
+          onClose={() => setSeasonModalVisible(false)}
         />
-      ) : (
-        <>
-          <Text style={styles.groupTitle}>
-            Athlete:{" "}
-            {selectedFincode === "all"
-              ? "Select an athlete"
-              : athletes.find((a) => a.fincode === selectedFincode)?.name ||
-                "Unknown"}
-          </Text>
 
-          {selectedFincode === "all" && (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataText}>
-                Please select an athlete to view their attendance trend
-              </Text>
-            </View>
-          )}
+        <CustomDropdownComponent
+          title="Select Type"
+          selectedValue={selectedType}
+          options={typeOptions}
+          onSelect={(value: string) => setSelectedType(value as "Swim" | "Gym")}
+          visible={typeModalVisible}
+          onClose={() => setTypeModalVisible(false)}
+        />
 
-          {/* Full Screen Chart Modal */}
-          <Modal
-            visible={showChartModal}
-            animationType="slide"
-            presentationStyle="fullScreen"
-            onRequestClose={closeChartModal}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {athletes.find((a) => a.fincode === selectedFincode)?.name} -{" "}
-                  {selectedType} Attendance
-                </Text>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={closeChartModal}
+        <CustomDropdownComponent
+          title="Select Group"
+          selectedValue={selectedGroup}
+          options={groupOptions}
+          onSelect={(value: string) =>
+            setSelectedGroup(value as "all" | "ASS" | "EA" | "EB" | "PROP")
+          }
+          visible={groupModalVisible}
+          onClose={() => setGroupModalVisible(false)}
+        />
+
+        <CustomDropdownComponent
+          title="Select Athlete"
+          selectedValue={selectedFincode.toString()}
+          options={athleteOptions}
+          onSelect={(value: string) =>
+            setSelectedFincode(value === "all" ? "all" : Number(value))
+          }
+          visible={athleteModalVisible}
+          onClose={() => setAthleteModalVisible(false)}
+        />
+
+        {error && <ErrorText>Error: {error}</ErrorText>}
+
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={{ marginTop: 50 }}
+          />
+        ) : (
+          <>
+            <GroupTitle>
+              Athlete:{" "}
+              {selectedFincode === "all"
+                ? "Athlete..."
+                : athletes.find((a) => a.fincode === selectedFincode)?.name ||
+                  "Unknown"}
+            </GroupTitle>
+
+            {selectedFincode === "all" && (
+              <NoDataContainer>
+                <NoDataText>
+                  Please select an athlete to view their attendance trend
+                </NoDataText>
+              </NoDataContainer>
+            )}
+
+            {/* Full Screen Chart Modal */}
+            <Modal
+              visible={showChartModal}
+              animationType="slide"
+              presentationStyle="fullScreen"
+              onRequestClose={closeChartModal}
+            >
+              <ModalContainer>
+                <ModalHeader>
+                  <ModalTitle>
+                    {athletes.find((a) => a.fincode === selectedFincode)?.name}{" "}
+                    - {selectedType} Attendance
+                  </ModalTitle>
+                  <CloseButton onPress={closeChartModal}>
+                    <Ionicons name="close" size={24} color="#333" />
+                  </CloseButton>
+                </ModalHeader>
+
+                <FullScreenChartScrollView
+                  horizontal
+                  contentContainerStyle={{
+                    paddingVertical: 5,
+                    paddingHorizontal: 5,
+                  }}
+                  showsHorizontalScrollIndicator={true}
                 >
-                  <Ionicons name="close" size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                horizontal
-                style={styles.fullScreenChartScrollView}
-                contentContainerStyle={{
-                  paddingVertical: 5,
-                  paddingHorizontal: 5,
-                }}
-                showsHorizontalScrollIndicator={true}
-              >
-                <Svg
-                  width={Math.max(
-                    Dimensions.get("window").height - 20,
-                    months.length * 50 + 140
-                  )} // Increased width for better label space
-                  height={Dimensions.get("window").width - 60} // Reduced height for shorter header
-                  style={styles.fullScreenChartSvg}
-                >
-                  {(() => {
-                    // Calculate responsive dimensions for mobile landscape
-                    const screenHeight = Dimensions.get("window").width - 60; // Less space taken by header
-                    const screenWidth = Math.max(
+                  <FullScreenChartSvg
+                    width={Math.max(
                       Dimensions.get("window").height - 20,
                       months.length * 50 + 140
-                    );
-                    const leftPadding = 55; // Reduced padding to move chart left
-                    const rightPadding = 20;
-                    const topPadding = 40; // Space for value labels above points
-                    const bottomPadding = 60; // Space for month labels
+                    )} // Increased width for better label space
+                    height={Dimensions.get("window").width - 60} // Reduced height for shorter header
+                  >
+                    {(() => {
+                      // Calculate responsive dimensions for mobile landscape
+                      const screenHeight = Dimensions.get("window").width - 60; // Less space taken by header
+                      const screenWidth = Math.max(
+                        Dimensions.get("window").height - 20,
+                        months.length * 50 + 140
+                      );
+                      const leftPadding = 55; // Reduced padding to move chart left
+                      const rightPadding = 20;
+                      const topPadding = 40; // Space for value labels above points
+                      const bottomPadding = 60; // Space for month labels
 
-                    // Reduce chart height so Y-axis labels are closer together
-                    const maxChartHeight = 180; // Compact height for mobile landscape
-                    const availableHeight =
-                      screenHeight - topPadding - bottomPadding;
-                    const chartHeight = Math.min(
-                      maxChartHeight,
-                      availableHeight
-                    );
-                    const chartWidth = screenWidth - leftPadding - rightPadding;
-                    const pointSpacing =
-                      chartWidth / Math.max(months.length - 1, 1);
+                      // Reduce chart height so Y-axis labels are closer together
+                      const maxChartHeight = 180; // Compact height for mobile landscape
+                      const availableHeight =
+                        screenHeight - topPadding - bottomPadding;
+                      const chartHeight = Math.min(
+                        maxChartHeight,
+                        availableHeight
+                      );
+                      const chartWidth =
+                        screenWidth - leftPadding - rightPadding;
+                      const pointSpacing =
+                        chartWidth / Math.max(months.length - 1, 1);
 
-                    return (
-                      <G>
-                        {/* Y axis grid lines and labels */}
-                        {[0, 20, 40, 60, 80, 100].map((y) => {
-                          const yPosition =
-                            topPadding + chartHeight - (y / 100) * chartHeight;
-                          return (
-                            <G key={y}>
-                              {/* Grid line */}
-                              <Line
-                                x1={leftPadding}
-                                x2={leftPadding + chartWidth}
-                                y1={yPosition}
-                                y2={yPosition}
-                                stroke={y === 0 ? "#999" : "#ddd"}
-                                strokeWidth={y === 0 ? 2 : 1}
-                              />
-                              {/* Y-axis label */}
-                              <SvgText
-                                x={leftPadding - 15} // Adjusted for reduced left padding
-                                y={yPosition + 4}
-                                fontSize={16} // Slightly larger font
-                                textAnchor="end"
-                                fill="#333"
-                                fontWeight="bold"
-                              >
-                                {y}%
-                              </SvgText>
-                            </G>
-                          );
-                        })}
+                      return (
+                        <G>
+                          {/* Y axis grid lines and labels */}
+                          {[0, 20, 40, 60, 80, 100].map((y) => {
+                            const yPosition =
+                              topPadding +
+                              chartHeight -
+                              (y / 100) * chartHeight;
+                            return (
+                              <G key={y}>
+                                {/* Grid line */}
+                                <Line
+                                  x1={leftPadding}
+                                  x2={leftPadding + chartWidth}
+                                  y1={yPosition}
+                                  y2={yPosition}
+                                  stroke={y === 0 ? "#999" : "#ddd"}
+                                  strokeWidth={y === 0 ? 2 : 1}
+                                />
+                                {/* Y-axis label */}
+                                <SvgText
+                                  x={leftPadding - 15} // Adjusted for reduced left padding
+                                  y={yPosition + 4}
+                                  fontSize={16} // Slightly larger font
+                                  textAnchor="end"
+                                  fill="#333"
+                                  fontWeight="bold"
+                                >
+                                  {y}%
+                                </SvgText>
+                              </G>
+                            );
+                          })}
 
-                        {/* X axis line */}
-                        <Line
-                          x1={leftPadding}
-                          x2={leftPadding + chartWidth}
-                          y1={topPadding + chartHeight}
-                          y2={topPadding + chartHeight}
-                          stroke="#999"
-                          strokeWidth={2}
-                        />
+                          {/* X axis line */}
+                          <Line
+                            x1={leftPadding}
+                            x2={leftPadding + chartWidth}
+                            y1={topPadding + chartHeight}
+                            y2={topPadding + chartHeight}
+                            stroke="#999"
+                            strokeWidth={2}
+                          />
 
-                        {/* Data points, lines, and labels */}
-                        {months.map((month, i) => {
-                          const data = chartData.find(
-                            (cd) => cd.month === month
-                          );
-                          const value = data?.attendance_percentage || 0;
-                          const pointColor =
-                            value >= 80 ? "#4caf50" : "#f44336";
+                          {/* Data points, lines, and labels */}
+                          {months.map((month, i) => {
+                            const data = chartData.find(
+                              (cd) => cd.month === month
+                            );
+                            const value = data?.attendance_percentage || 0;
+                            const pointColor =
+                              value >= 80 ? "#4caf50" : "#f44336";
 
-                          const x = leftPadding + i * pointSpacing;
-                          const y =
-                            topPadding +
-                            chartHeight -
-                            (value / 100) * chartHeight;
+                            const x = leftPadding + i * pointSpacing;
+                            const y =
+                              topPadding +
+                              chartHeight -
+                              (value / 100) * chartHeight;
 
-                          return (
-                            <G key={month}>
-                              {/* Line to next point */}
-                              {i < months.length - 1 &&
-                                (() => {
-                                  const nextData = chartData.find(
-                                    (cd) => cd.month === months[i + 1]
-                                  );
-                                  const nextValue =
-                                    nextData?.attendance_percentage || 0;
-                                  const nextX =
-                                    leftPadding + (i + 1) * pointSpacing;
-                                  const nextY =
-                                    topPadding +
-                                    chartHeight -
-                                    (nextValue / 100) * chartHeight;
+                            return (
+                              <G key={month}>
+                                {/* Line to next point */}
+                                {i < months.length - 1 &&
+                                  (() => {
+                                    const nextData = chartData.find(
+                                      (cd) => cd.month === months[i + 1]
+                                    );
+                                    const nextValue =
+                                      nextData?.attendance_percentage || 0;
+                                    const nextX =
+                                      leftPadding + (i + 1) * pointSpacing;
+                                    const nextY =
+                                      topPadding +
+                                      chartHeight -
+                                      (nextValue / 100) * chartHeight;
 
-                                  return (
-                                    <Line
-                                      x1={x}
-                                      y1={y}
-                                      x2={nextX}
-                                      y2={nextY}
-                                      stroke="#666"
-                                      strokeWidth={3}
-                                    />
-                                  );
-                                })()}
+                                    return (
+                                      <Line
+                                        x1={x}
+                                        y1={y}
+                                        x2={nextX}
+                                        y2={nextY}
+                                        stroke="#666"
+                                        strokeWidth={3}
+                                      />
+                                    );
+                                  })()}
 
-                              {/* Data point circle */}
-                              <Circle
-                                cx={x}
-                                cy={y}
-                                r={6}
-                                fill={pointColor}
-                                stroke="white"
-                                strokeWidth={3}
-                              />
+                                {/* Data point circle */}
+                                <Circle
+                                  cx={x}
+                                  cy={y}
+                                  r={6}
+                                  fill={pointColor}
+                                  stroke="white"
+                                  strokeWidth={3}
+                                />
 
-                              {/* Month label below X axis */}
-                              <SvgText
-                                x={x}
-                                y={topPadding + chartHeight + 20}
-                                fontSize={12}
-                                textAnchor="middle"
-                                fill="#333"
-                                fontWeight="bold"
-                              >
-                                {month.slice(5)} {/* Show only month (MM) */}
-                              </SvgText>
-
-                              {/* Value label above point */}
-                              {value > 0 && (
+                                {/* Month label below X axis */}
                                 <SvgText
                                   x={x}
-                                  y={y - 12}
+                                  y={topPadding + chartHeight + 20}
                                   fontSize={12}
                                   textAnchor="middle"
                                   fill="#333"
                                   fontWeight="bold"
                                 >
-                                  {`${value}%`}
+                                  {month.slice(5)} {/* Show only month (MM) */}
                                 </SvgText>
-                              )}
 
-                              {/* Vertical grid line at each month */}
-                              <Line
-                                x1={x}
-                                x2={x}
-                                y1={topPadding + chartHeight}
-                                y2={topPadding + chartHeight + 5}
-                                stroke="#999"
-                                strokeWidth={1}
-                              />
-                            </G>
-                          );
-                        })}
-                      </G>
-                    );
-                  })()}
-                </Svg>
-              </ScrollView>
-            </View>
-          </Modal>
+                                {/* Value label above point */}
+                                {value > 0 && (
+                                  <SvgText
+                                    x={x}
+                                    y={y - 12}
+                                    fontSize={12}
+                                    textAnchor="middle"
+                                    fill="#333"
+                                    fontWeight="bold"
+                                  >
+                                    {`${value}%`}
+                                  </SvgText>
+                                )}
 
-          {selectedFincode !== "all" && chartData.length > 0 && (
-            <View style={styles.summaryContainer}>
-              <Text style={styles.summaryText}>
-                Showing attendance trend for{" "}
-                <Text style={styles.boldText}>
-                  {athletes.find((a) => a.fincode === selectedFincode)?.name}
-                </Text>{" "}
-                in <Text style={styles.boldText}>{selectedType}</Text> sessions
-              </Text>
-              <Text style={styles.noteText}>
-                <Text style={styles.boldText}>Note:</Text> Green points indicate
-                attendance ≥80%, red points indicate attendance &lt;80%
-              </Text>
-            </View>
-          )}
-        </>
-      )}
-    </ScrollView>
+                                {/* Vertical grid line at each month */}
+                                <Line
+                                  x1={x}
+                                  x2={x}
+                                  y1={topPadding + chartHeight}
+                                  y2={topPadding + chartHeight + 5}
+                                  stroke="#999"
+                                  strokeWidth={1}
+                                />
+                              </G>
+                            );
+                          })}
+                        </G>
+                      );
+                    })()}
+                  </FullScreenChartSvg>
+                </FullScreenChartScrollView>
+              </ModalContainer>
+            </Modal>
+
+            {selectedFincode !== "all" && chartData.length > 0 && (
+              <SummaryContainer>
+                <SummaryText>
+                  Showing attendance trend for{" "}
+                  <BoldText>
+                    {athletes.find((a) => a.fincode === selectedFincode)?.name}
+                  </BoldText>{" "}
+                  in <BoldText>{selectedType}</BoldText> sessions
+                </SummaryText>
+                <NoteText>
+                  <BoldText>Note:</BoldText> Green points indicate attendance
+                  ≥80%, red points indicate attendance &lt;80%
+                </NoteText>
+              </SummaryContainer>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </Container>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  filterContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  filterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    width: 80,
-  },
-  pickerContainer: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    marginLeft: 10,
-    paddingVertical: 5,
-    justifyContent: "center",
-  },
-  picker: {
-    backgroundColor: "transparent",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  filterButton: {
-    backgroundColor: "#007AFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 10,
-    justifyContent: "center",
-  },
-  exportButton: {
-    backgroundColor: "#28a745",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    justifyContent: "center",
-  },
-  chartButton: {
-    backgroundColor: "#007AFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    justifyContent: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  errorText: {
-    color: "red",
-    fontSize: 16,
-    textAlign: "center",
-    marginVertical: 10,
-    backgroundColor: "#ffebee",
-    padding: 10,
-    borderRadius: 8,
-  },
-  loadingIndicator: {
-    marginTop: 50,
-  },
-  groupTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  noDataContainer: {
-    padding: 40,
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    marginVertical: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  noDataText: {
-    color: "#666",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  chartScrollView: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  chartSvg: {
-    backgroundColor: "#f8f8ff",
-    borderRadius: 8,
-  },
-  summaryContainer: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  noteText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  boldText: {
-    fontWeight: "bold",
-    color: "#333",
-  },
-  chartPreviewButton: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 40,
-    marginVertical: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: "#007AFF",
-    borderStyle: "dashed",
-  },
-  chartPreviewText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#007AFF",
-    marginTop: 10,
-  },
-  chartPreviewSubtext: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 5,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 8, // Much shorter header
-    backgroundColor: "#ffffff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  modalTitle: {
-    fontSize: 14, // Smaller font for compact header
-    fontWeight: "bold",
-    color: "#333",
-    flex: 1,
-  },
-  closeButton: {
-    padding: 4, // Smaller close button
-    backgroundColor: "#f8f9fa",
-    borderRadius: 15,
-  },
-  fullScreenChartScrollView: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    margin: 5,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  fullScreenChartSvg: {
-    backgroundColor: "#f8f8ff",
-    borderRadius: 8,
-  },
-});

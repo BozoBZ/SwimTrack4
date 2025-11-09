@@ -1,9 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, Image, Alert } from "react-native";
+import { View, Text, FlatList, Image, Alert } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase } from "../utils/supabaseClient";
 import { useRouter } from "expo-router";
+import {
+  Container,
+  SuccessButton,
+  DangerButton,
+  AthleteName,
+  AthleteRowPresent,
+  AthleteRowJustified,
+  AthleteRowAbsent,
+  AthleteRowNotSet,
+  CounterContainer,
+  CounterItemPresent,
+  CounterItemJustified,
+  CounterItemAbsent,
+  CounterItemNotSet,
+  CounterText,
+  ErrorContainer,
+  ErrorText,
+  AttendancePortrait,
+  BottomButtonsContainer,
+  ButtonTextWithMargin,
+  HeaderSpacing,
+  SessionInfo,
+  colors,
+} from "../styles/globalStyles";
 
 // Define the Athlete type
 type Athlete = {
@@ -141,23 +165,18 @@ const AttendanceScreen = () => {
 
   if (!sessionId || !sessionDate || !selectedGroup) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Error: Missing session details.</Text>
-      </View>
+      <ErrorContainer>
+        <ErrorText>Error: Missing session details.</ErrorText>
+      </ErrorContainer>
     );
   }
 
   const renderAthlete = ({ item }: { item: any }) => {
-    // Set background color based on status
-    let rowStyle = { ...styles.athleteRow };
-    if (item.status === "P")
-      rowStyle.backgroundColor = "#b6eab6"; // light green
-    else if (item.status === "A")
-      rowStyle.backgroundColor = "#f7b6b6"; // light red
-    else if (item.status === "J")
-      rowStyle.backgroundColor = "#b3eaff"; // light blue
-    else if (item.status === "N" || !item.status)
-      rowStyle.backgroundColor = "#e0e0e0"; // light gray
+    // Determine which row component to use based on status
+    let RowComponent = AthleteRowNotSet; // default
+    if (item.status === "P") RowComponent = AthleteRowPresent;
+    else if (item.status === "A") RowComponent = AthleteRowAbsent;
+    else if (item.status === "J") RowComponent = AthleteRowJustified;
 
     // Convert Google Drive URLs to direct links
     if (item.photo && item.photo.includes("drive.google.com")) {
@@ -168,7 +187,7 @@ const AttendanceScreen = () => {
     }
 
     return (
-      <View style={rowStyle}>
+      <RowComponent>
         {(() => {
           const athleteKey = item.fincode?.toString() || "unknown";
           const hasImageError = imageErrors.has(athleteKey);
@@ -180,13 +199,12 @@ const AttendanceScreen = () => {
           const shouldLoadImage = photoUrl && !hasImageError;
 
           return shouldLoadImage ? (
-            <Image
+            <AttendancePortrait
               source={{ uri: photoUrl }}
-              style={styles.portrait}
               onLoad={() => {
                 // Image loaded successfully
               }}
-              onError={(error) => {
+              onError={(error: any) => {
                 const errorMsg = error.nativeEvent?.error || "";
                 // Handle various error codes that indicate file doesn't exist
                 if (
@@ -204,19 +222,15 @@ const AttendanceScreen = () => {
               }}
             />
           ) : (
-            <Image
+            <AttendancePortrait
               source={require("@/assets/images/default-avatar.png")}
-              style={styles.portrait}
             />
           );
         })()}
-        <Text
-          onPress={() => handleNamePress(item.fincode)}
-          style={{ fontWeight: "bold", fontSize: 16 }}
-        >
+        <AthleteName onPress={() => handleNamePress(item.fincode)}>
           {item.name}
-        </Text>
-      </View>
+        </AthleteName>
+      </RowComponent>
     );
   };
 
@@ -233,43 +247,35 @@ const AttendanceScreen = () => {
   const statusCounts = getStatusCounts();
 
   return (
-    <View style={styles.container}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
-        <Text style={styles.title}>Date: {sessionDate}</Text>
-        <Text style={styles.title}>Group: {selectedGroup}</Text>
-      </View>
+    <Container>
+      <HeaderSpacing>
+        <SessionInfo>Date: {sessionDate}</SessionInfo>
+        <SessionInfo>Group: {selectedGroup}</SessionInfo>
+      </HeaderSpacing>
 
       {/* Live attendance counter */}
-      <View style={styles.counterContainer}>
-        <View style={[styles.counterItem, { backgroundColor: "#b6eab6" }]}>
-          <Text style={styles.counterText}>P:{statusCounts.P}</Text>
-        </View>
-        <View style={[styles.counterItem, { backgroundColor: "#b3eaff" }]}>
-          <Text style={styles.counterText}>J:{statusCounts.J}</Text>
-        </View>
-        <View style={[styles.counterItem, { backgroundColor: "#f7b6b6" }]}>
-          <Text style={styles.counterText}>A:{statusCounts.A}</Text>
-        </View>
-        <View style={[styles.counterItem, { backgroundColor: "#e0e0e0" }]}>
-          <Text style={styles.counterText}>N:{statusCounts.N}</Text>
-        </View>
-      </View>
+      <CounterContainer>
+        <CounterItemPresent>
+          <CounterText>P:{statusCounts.P}</CounterText>
+        </CounterItemPresent>
+        <CounterItemJustified>
+          <CounterText>J:{statusCounts.J}</CounterText>
+        </CounterItemJustified>
+        <CounterItemAbsent>
+          <CounterText>A:{statusCounts.A}</CounterText>
+        </CounterItemAbsent>
+        <CounterItemNotSet>
+          <CounterText>N:{statusCounts.N}</CounterText>
+        </CounterItemNotSet>
+      </CounterContainer>
 
       <FlatList
         data={filteredAthletes}
         keyExtractor={(item) => item.fincode.toString()}
         renderItem={renderAthlete}
       />
-      <View style={styles.bottomButtonsContainer}>
-        <Ionicons.Button
-          name="save"
-          backgroundColor="#4caf50"
+      <BottomButtonsContainer>
+        <SuccessButton
           onPress={async () => {
             try {
               // Fetch current records for this session
@@ -333,116 +339,17 @@ const AttendanceScreen = () => {
               console.error("Failed to save attendance:", err);
             }
           }}
-          size={20}
-          color="#fff"
-        />
-        <Ionicons.Button
-          name="close"
-          backgroundColor="#ff4336"
-          onPress={() => router.push("/(tabs)/trainings")}
-          size={20}
-          color="#fff"
-        />
-      </View>
-    </View>
+        >
+          <Ionicons name="save" size={20} color={colors.white} />
+          <ButtonTextWithMargin>Save</ButtonTextWithMargin>
+        </SuccessButton>
+        <DangerButton onPress={() => router.push("/(tabs)/trainings")}>
+          <Ionicons name="close" size={20} color={colors.white} />
+          <ButtonTextWithMargin>Close</ButtonTextWithMargin>
+        </DangerButton>
+      </BottomButtonsContainer>
+    </Container>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f0f0f0",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  athleteItem: {
-    padding: 10,
-    backgroundColor: "#fff",
-    marginBottom: 5,
-    borderRadius: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    // For Android elevation
-    elevation: 2,
-  },
-  athleteName: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  athleteDetails: {
-    fontSize: 14,
-    color: "#555",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "red",
-    textAlign: "center",
-    marginTop: 20,
-  },
-  athleteRow: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-  },
-  row: {
-    justifyContent: "space-between",
-  },
-  portrait: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  bottomButtonsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 20,
-    paddingHorizontal: 20,
-    marginBottom: 32, // Add extra bottom margin to avoid overlap with navigation bar
-  },
-  counterContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginBottom: 15,
-    paddingHorizontal: 10,
-  },
-  counterItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    minWidth: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  counterText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-  },
-});
 
 export default AttendanceScreen;
