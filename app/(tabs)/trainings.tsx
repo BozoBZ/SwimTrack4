@@ -4,6 +4,7 @@ import {
   Modal,
   ScrollView,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import React, { useState } from "react";
@@ -19,9 +20,6 @@ import {
   ModalContent,
   ModalTitle,
   Input,
-  EditButton,
-  DeleteButton,
-  AttendanceButton,
   WeekNavigation,
   NavButton,
   WeekTitle,
@@ -67,19 +65,6 @@ const SessionItem = styled.View`
   shadow-radius: 3px;
 `;
 
-const AddNewButton = styled.TouchableOpacity`
-  background-color: ${colors.warning};
-  padding-vertical: 5px;
-  padding-horizontal: 10px;
-  border-radius: 5px;
-  align-items: center;
-`;
-
-const AddNewButtonText = styled.Text`
-  color: #fff;
-  font-weight: bold;
-`;
-
 const GroupFilterContainer = styled.View`
   background-color: #ffffff;
   margin-bottom: 15px;
@@ -116,22 +101,6 @@ const ButtonContainer = styled.View`
   margin-top: 10px;
 `;
 
-const SaveButton = styled.TouchableOpacity`
-  background-color: ${colors.success};
-  padding-vertical: 5px;
-  padding-horizontal: 10px;
-  border-radius: 5px;
-  align-items: center;
-`;
-
-const CancelButton = styled.TouchableOpacity`
-  background-color: ${colors.danger};
-  padding-vertical: 5px;
-  padding-horizontal: 10px;
-  border-radius: 5px;
-  align-items: center;
-`;
-
 export default function TrainingsScreen() {
   const [selectedDay, setSelectedDay] = useState<DateObject | null>(null);
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -141,8 +110,9 @@ export default function TrainingsScreen() {
     useState(false);
   const [athletesList, setAthletesList] = useState<any[]>([]);
   const [filteredAthletes, setFilteredAthletes] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>("ALL");
-  const [filterGroup, setFilterGroup] = useState<string>("ALL");
+  const [selectedGroup, setSelectedGroup] = useState<string>("ASS");
+  const [filterGroup, setFilterGroup] = useState<string>("ASS");
+  const [descriptionHeight, setDescriptionHeight] = useState<number>(60);
 
   const [newSession, setNewSession] = useState<Partial<TrainingDay>>({
     session_id: 0,
@@ -384,7 +354,7 @@ export default function TrainingsScreen() {
               selectedValue={filterGroup}
               onValueChange={(itemValue) => setFilterGroup(itemValue)}
               style={{
-                backgroundColor: "#f8f9fa",
+                backgroundColor: "#ffffff",
                 borderRadius: 8,
                 color: "#333333",
               }}
@@ -393,7 +363,6 @@ export default function TrainingsScreen() {
                 color: "#333333",
               }}
             >
-              <Picker.Item label="All Groups" value="ALL" style={{ color: "#333333" }} />
               <Picker.Item label="ASS" value="ASS" style={{ color: "#333333" }} />
               <Picker.Item label="EA" value="EA" style={{ color: "#333333" }} />
               <Picker.Item label="EB" value="EB" style={{ color: "#333333" }} />
@@ -406,13 +375,23 @@ export default function TrainingsScreen() {
       {selectedDay && (
         <>
           <Heading>{selectedDay.dateString}</Heading>
-          <AddNewButton onPress={toggleModal}>
-            <AddNewButtonText>+</AddNewButtonText>
-          </AddNewButton>
+          <TouchableOpacity
+            onPress={toggleModal}
+            style={{
+              backgroundColor: colors.warning,
+              paddingVertical: 5,
+              paddingHorizontal: 10,
+              borderRadius: 5,
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <Ionicons name="add-circle-outline" color="#fff" size={28} />
+          </TouchableOpacity>
           <FlatList
             data={sessionsForDay.filter(
               (session) =>
-                filterGroup === "ALL" || session.groups?.includes(filterGroup)
+                filterGroup === "ASS" || session.groups?.includes(filterGroup)
             )}
             keyExtractor={(item) =>
               item.session_id
@@ -428,14 +407,17 @@ export default function TrainingsScreen() {
                     alignItems: "center",
                   }}
                 >
-                  <Text>Session ID: {item.session_id}</Text>
+                  <Text>ID: {item.session_id}</Text>
                   <Text>Type: {item.type}</Text>
                 </View>
                 <ButtonContainer>
-                  <EditButton onPress={() => editSession(item.session_id)}>
-                    <Ionicons name="create-outline" color="#333" size={24} />
-                  </EditButton>
-                  <AttendanceButton
+                  <TouchableOpacity
+                    onPress={() => editSession(item.session_id)}
+                    style={{ marginHorizontal: 8 }}
+                  >
+                    <Ionicons name="create-outline" color={colors.primary} size={24} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     onPress={() => {
                       router.push({
                         pathname: "/attendance",
@@ -446,12 +428,16 @@ export default function TrainingsScreen() {
                         },
                       });
                     }}
+                    style={{ marginHorizontal: 8 }}
                   >
-                    <Ionicons name="people-outline" color="#333" size={24} />
-                  </AttendanceButton>
-                  <DeleteButton onPress={() => deleteSession(item.session_id)}>
-                    <Ionicons name="trash-outline" color="#fff" size={24} />
-                  </DeleteButton>
+                    <Ionicons name="people-outline" color={colors.info} size={24} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => deleteSession(item.session_id)}
+                    style={{ marginHorizontal: 8 }}
+                  >
+                    <Ionicons name="trash-outline" color={colors.danger} size={24} />
+                  </TouchableOpacity>
                 </ButtonContainer>
               </SessionItem>
             )}
@@ -468,7 +454,7 @@ export default function TrainingsScreen() {
         <ModalContainer>
           <ModalContent style={{ maxHeight: "80%" }}>
             <ScrollView>
-              <ModalTitle>Add/Edit Session</ModalTitle>
+              <ModalTitle>{newSession.date}</ModalTitle>
               <Input
                 placeholder="Title"
                 value={newSession.title || ""}
@@ -476,7 +462,6 @@ export default function TrainingsScreen() {
                   handleInputChange("title", text)
                 }
               />
-              <Text>Date: {newSession.date}</Text>
               <Input
                 placeholder="Start Time (hh:mm)"
                 value={newSession.starttime || ""}
@@ -497,14 +482,14 @@ export default function TrainingsScreen() {
                   handleInputChange("type", itemValue)
                 }
                 style={{
-                  color: "#333333",
-                  backgroundColor: "#ffffff",
-                  height: 50,
-                }}
-                itemStyle={{
-                  color: "#333333",
-                  fontSize: 16,
-                }}
+                backgroundColor: "#ffffff",
+                borderRadius: 8,
+                color: "#333333",
+              }}
+              itemStyle={{
+                height: 44,
+                color: "#333333",
+              }}
               >
                 <Picker.Item label="Swim" value="Swim" style={{ color: "#333333" }} />
                 <Picker.Item label="Gym" value="Gym" style={{ color: "#333333" }} />
@@ -516,10 +501,12 @@ export default function TrainingsScreen() {
                   handleInputChange("description", text)
                 }
                 multiline={true}
-                numberOfLines={6}
                 textAlignVertical="top"
                 scrollEnabled={true}
-                style={{ height: 120, paddingTop: 10 }}
+                onContentSizeChange={(event: any) => {
+                  setDescriptionHeight(Math.max(60, event.nativeEvent.contentSize.height));
+                }}
+                style={{ height: Math.max(60, descriptionHeight), paddingTop: 10, fontSize: 10 }}
               />
               {/* Hide volume, poolname, poollength if type is Gym */}
               {newSession.type !== "Gym" && (
@@ -564,12 +551,18 @@ export default function TrainingsScreen() {
                 }
               />
               <ButtonContainer>
-                <SaveButton onPress={saveSession}>
-                  <Ionicons name="save-outline" color="#fff" size={24} />
-                </SaveButton>
-                <CancelButton onPress={toggleModal}>
-                  <Ionicons name="expand-outline" color="#fff" size={24} />
-                </CancelButton>
+                <TouchableOpacity
+                  onPress={saveSession}
+                  style={{ marginHorizontal: 8 }}
+                >
+                  <Ionicons name="save-outline" color={colors.success} size={24} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={toggleModal}
+                  style={{ marginHorizontal: 8 }}
+                >
+                  <Ionicons name="close-circle-outline" color={colors.info} size={26} />
+                </TouchableOpacity>
               </ButtonContainer>
             </ScrollView>
           </ModalContent>

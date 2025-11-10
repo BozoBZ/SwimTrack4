@@ -172,13 +172,11 @@ const AthletesScreen = () => {
 
     try {
       // Test basic connection first with timeout
-      console.log("Testing database connection...");
       await withTimeout(
         supabase.from("athletes").select("count"),
         10000 // 10 second timeout for connection test
       );
 
-      console.log("Fetching athletes data...");
       // Call the database function get_athletes_with_rosters with timeout
       const { data, error } = await withTimeout(
         supabase.rpc("get_athletes_with_rosters", {
@@ -267,12 +265,6 @@ const AthletesScreen = () => {
   };
 
   const openModal = (athlete: Athlete) => {
-    console.log("=== Opening modal for athlete ===");
-    console.log("Full athlete object:", JSON.stringify(athlete, null, 2));
-    console.log("Athlete groups field:", athlete.groups);
-    console.log("Athlete groups type:", typeof athlete.groups);
-    console.log("Athlete groups length:", athlete.groups?.length);
-    console.log("=====================================");
 
     setSelectedAthlete(athlete);
     setModalVisible(true);
@@ -287,7 +279,6 @@ const AthletesScreen = () => {
     if (!selectedAthlete) return;
 
     try {
-      console.log("Saving athlete data...");
       const { error } = await withTimeout(
         supabase
           .from("athletes")
@@ -300,7 +291,6 @@ const AthletesScreen = () => {
         throw error;
       }
 
-      console.log("Athlete saved successfully");
       // Refetch data after saving
       if (selectedSeason && selectedGroup && selectedGroup !== "") {
         await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
@@ -319,7 +309,6 @@ const AthletesScreen = () => {
     if (!selectedAthlete) return;
 
     try {
-      console.log("Deleting athlete...");
       const { error } = await withTimeout(
         supabase
           .from("athletes")
@@ -332,7 +321,6 @@ const AthletesScreen = () => {
         throw error;
       }
 
-      console.log("Athlete deleted successfully");
       // Refetch data after deleting
       if (selectedSeason && selectedGroup && selectedGroup !== "") {
         await fetchAthletesForSeasonAndGroup(selectedSeason, selectedGroup);
@@ -434,7 +422,6 @@ const AthletesScreen = () => {
 
   return (
     <Container>
-      <Title>Athletes</Title>
 
       {/* Dropdowns Row */}
       <DropdownRow>
@@ -447,7 +434,7 @@ const AthletesScreen = () => {
             style={{
               color: colors.textPrimary,
               backgroundColor: colors.white,
-              height: 50,
+              height: 55,
             }}
             itemStyle={{
               color: colors.textPrimary,
@@ -479,7 +466,7 @@ const AthletesScreen = () => {
             style={{
               color: colors.textPrimary,
               backgroundColor: colors.white,
-              height: 50,
+              height: 55,
             }}
             itemStyle={{
               color: colors.textPrimary,
@@ -657,34 +644,6 @@ const AthletesScreen = () => {
                 placeholder="Phone"
               />
 
-              {/* Active Row */}
-              <View style={{ width: '100%', paddingLeft: 0, marginBottom: 15 }}>
-                <ActiveContainer>
-                  <ActiveLabel>Active:</ActiveLabel>
-                  <ActiveCheckbox
-                    onPress={() =>
-                      setSelectedAthlete({
-                        ...selectedAthlete,
-                        active: !selectedAthlete.active,
-                      })
-                    }
-                  >
-                    <Checkbox
-                      style={{
-                        backgroundColor: selectedAthlete.active
-                          ? colors.success
-                          : "transparent",
-                        borderColor: selectedAthlete.active
-                          ? colors.success
-                          : colors.primary,
-                      }}
-                    >
-                      {selectedAthlete.active && <Checkmark>✔</Checkmark>}
-                    </Checkbox>
-                  </ActiveCheckbox>
-                </ActiveContainer>
-              </View>
-
               {/* Removed duplicate Active row here */}
               <ModalButtons>
                 <TouchableOpacity
@@ -693,7 +652,7 @@ const AthletesScreen = () => {
                 >
                   <Ionicons
                     name="save-outline"
-                    color={colors.textPrimary}
+                    color={colors.success}
                     size={24}
                   />
                 </TouchableOpacity>
@@ -702,9 +661,9 @@ const AthletesScreen = () => {
                   style={{ marginHorizontal: 8 }}
                 >
                   <Ionicons
-                    name="close-outline"
-                    color={colors.warning}
-                    size={24}
+                    name="close-circle-outline"
+                    color={colors.info}
+                    size={26}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity

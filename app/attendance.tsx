@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, Image, Alert } from "react-native";
+import { View, Text, FlatList, Image, Alert, TouchableOpacity } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase } from "../utils/supabaseClient";
 import { useRouter } from "expo-router";
 import {
   Container,
-  SuccessButton,
-  DangerButton,
   AthleteName,
   AthleteRowPresent,
   AthleteRowJustified,
@@ -275,7 +273,7 @@ const AttendanceScreen = () => {
         renderItem={renderAthlete}
       />
       <BottomButtonsContainer>
-        <SuccessButton
+        <TouchableOpacity
           onPress={async () => {
             try {
               // Fetch current records for this session
@@ -339,14 +337,23 @@ const AttendanceScreen = () => {
               console.error("Failed to save attendance:", err);
             }
           }}
+          style={{ marginHorizontal: 8 }}
+                >
+          <Ionicons
+            name="save-outline"
+            color={colors.success}
+            size={24}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/trainings")}
         >
-          <Ionicons name="save" size={20} color={colors.white} />
-          <ButtonTextWithMargin>Save</ButtonTextWithMargin>
-        </SuccessButton>
-        <DangerButton onPress={() => router.push("/(tabs)/trainings")}>
-          <Ionicons name="close" size={20} color={colors.white} />
-          <ButtonTextWithMargin>Close</ButtonTextWithMargin>
-        </DangerButton>
+        <Ionicons
+          name="close-circle-outline"
+          color={colors.info}
+          size={26}
+        />
+        </TouchableOpacity>
       </BottomButtonsContainer>
     </Container>
   );

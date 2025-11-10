@@ -270,7 +270,8 @@ export const ModalContainer = styled.View`
 `;
 
 export const ModalContent = styled.View`
-  width: 300px;
+  width: 90%;
+  max-width: 400px;
   padding: ${spacing.lg}px;
   background-color: ${colors.white};
   border-radius: ${borderRadius.lg}px;
@@ -279,7 +280,7 @@ export const ModalContent = styled.View`
     ${shadow.large.shadowOffset.height}px;
   shadow-opacity: ${shadow.large.shadowOpacity};
   shadow-radius: ${shadow.large.shadowRadius}px;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
 `;
 
@@ -293,7 +294,7 @@ export const ModalHeader = styled.View`
 `;
 
 export const ModalTitle = styled(Title)`
-  text-align: center;
+  text-align: left;
 `;
 
 export const ModalButtons = styled(Row)`

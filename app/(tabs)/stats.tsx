@@ -4,7 +4,6 @@ import {
   Text,
   ActivityIndicator,
   ScrollView,
-  Image,
   TouchableOpacity,
   Alert,
   Modal,
@@ -14,14 +13,10 @@ import { supabase } from "../../utils/supabaseClient";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Container,
-  Card,
   Heading,
-  Row,
   SuccessButton,
-  InfoButton,
   ButtonText,
   colors,
-  spacing,
 } from "../../styles/globalStyles";
 import styled from "styled-components/native";
 
